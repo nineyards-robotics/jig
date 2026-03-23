@@ -1,14 +1,12 @@
-# cake
+# jig
 
-**Declarative code generation for ROS 2 nodes**
+**Declarative ROS 2 node scaffolding with built-in best practice**
 
-Cake transforms simple YAML interface definitions into strongly-typed C++ and Python ROS 2 lifecycle node scaffolding. Define your publishers, subscribers, services, actions and parameters in one simple file and Cake will handle the rest.
-
-Using cake, writing ROS2 nodes becomes a... <sub>piece of cake (hehe)</sub>
+Jig transforms simple YAML interface definitions into strongly-typed C++ and Python ROS 2 lifecycle node scaffolding. Define your publishers, subscribers, services, actions and parameters in one simple file and Jig will handle the rest.
 
 ## Quick Start
 
-Cake uses a convention-over-configuration approach with automatic build system integration. Here's how to create a complete ROS 2 package in minutes:
+Jig uses a convention-over-configuration approach with automatic build system integration. Here's how to create a complete ROS 2 package in minutes:
 
 ### 1. Create Package Structure
 Your package should follow this structure:
@@ -59,7 +57,7 @@ services:
 
 First, create the header (`nodes/my_node/my_node.hpp`):
 
-> **Design Pattern:** Cake uses a lifecycle `Session` class rather than subclassing `rclcpp_lifecycle::LifecycleNode`. This separation makes testing easier (you can test logic without spinning up ROS), keeps state explicit, and allows callbacks to be simple free functions. The `Session` is created during the `on_configure` lifecycle transition and destroyed on `cleanup`/`shutdown`. To define the `Session` of your node, you subclass the auto-generated `<NodeName>Session` struct and add your own variables to it. The auto-generated `Session` class will contain a reference to the lifecycle node instance, as well as all publishers, subscribers, services, actions and parameters.
+> **Design Pattern:** Jig uses a lifecycle `Session` class rather than subclassing `rclcpp_lifecycle::LifecycleNode`. This separation makes testing easier (you can test logic without spinning up ROS), keeps state explicit, and allows callbacks to be simple free functions. The `Session` is created during the `on_configure` lifecycle transition and destroyed on `cleanup`/`shutdown`. To define the `Session` of your node, you subclass the auto-generated `<NodeName>Session` struct and add your own variables to it. The auto-generated `Session` class will contain a reference to the lifecycle node instance, as well as all publishers, subscribers, services, actions and parameters.
 
 ```cpp
 #pragma once
@@ -88,7 +86,7 @@ using MyNode = MyNodeBase<Session, on_configure>;
 
 Then implement it (`nodes/my_node/my_node.cpp`):
 
-> **Design Pattern:** Cake uses a free function `on_configure()` approach instead of subclassing `rclcpp_lifecycle::LifecycleNode`. The `on_configure()` function receives a fully-constructed session with all publishers, subscribers, and parameters ready to use. This functional approach, coupled with the session object, makes nodes easier to reason about, simpler to write and more testable. By storing a reference to the lifecycle node in the session, we create a "has-a" relationship with the Node rather than "is-a", cleanly separating ROS communication from your implementation logic.
+> **Design Pattern:** Jig uses a free function `on_configure()` approach instead of subclassing `rclcpp_lifecycle::LifecycleNode`. The `on_configure()` function receives a fully-constructed session with all publishers, subscribers, and parameters ready to use. This functional approach, coupled with the session object, makes nodes easier to reason about, simpler to write and more testable. By storing a reference to the lifecycle node in the session, we create a "has-a" relationship with the Node rather than "is-a", cleanly separating ROS communication from your implementation logic.
 
 ```cpp
 #include "my_node.hpp"
@@ -132,7 +130,7 @@ CallbackReturn on_configure(std::shared_ptr<Session> sn) {
 ```python
 from dataclasses import dataclass
 
-from cake import TransitionCallbackReturn
+from jig import TransitionCallbackReturn
 from my_package.my_node import MyNodeSession, run
 from std_msgs.msg import String
 
@@ -171,13 +169,13 @@ This is all you need in your `CMakeLists.txt`:
 cmake_minimum_required(VERSION 3.22)
 project(my_package)
 
-find_package(cake REQUIRED)
-cake_auto_package()
+find_package(jig REQUIRED)
+jig_auto_package()
 ```
 
-**Note:** Cake assumes a single-threaded executor. See [Threading Model](#threading-model) for details.
+**Note:** Jig assumes a single-threaded executor. See [Threading Model](#threading-model) for details.
 
-That's it! `cake_auto_package()` automatically:
+That's it! `jig_auto_package()` automatically:
 - Detects C++ and Python nodes in the `nodes/` folder
 - Generates interfaces and parameter libraries
 - Builds libraries and executables
@@ -192,11 +190,11 @@ That's it! `cake_auto_package()` automatically:
 <package format="3">
   <name>my_package</name>
   <version>0.0.0</version>
-  <description>My cake package</description>
+  <description>My jig package</description>
   <maintainer email="you@example.com">Your Name</maintainer>
   <license>Apache 2.0</license>
 
-  <depend>cake</depend>
+  <depend>jig</depend>
   <depend>rclcpp</depend>  <!-- For C++ nodes -->
   <depend>rclpy</depend>   <!-- For Python nodes -->
 
@@ -226,7 +224,7 @@ ros2 component standalone my_package my_package::MyNode
 
 ## Lifecycle Callbacks
 
-Cake nodes follow the standard ROS 2 lifecycle state machine. The Quick Start examples show `on_configure`, but there are five lifecycle callbacks you can implement. Only `on_configure` is required — the rest are optional.
+Jig nodes follow the standard ROS 2 lifecycle state machine. The Quick Start examples show `on_configure`, but there are five lifecycle callbacks you can implement. Only `on_configure` is required — the rest are optional.
 
 ### Available Callbacks
 
@@ -242,7 +240,7 @@ All callbacks except `on_shutdown` can return `SUCCESS`, `FAILURE`, or `ERROR`. 
 
 ### Execution Order
 
-Cake handles entity lifecycle management automatically around your callbacks:
+Jig handles entity lifecycle management automatically around your callbacks:
 
 - **Configure:** Session is created with all entities, then `on_configure` runs. On failure, the session is destroyed.
 - **Activate:** `on_activate` runs first, then entities are activated automatically.
@@ -324,7 +322,7 @@ using MyNode = MyNodeBase<Session, on_configure, on_activate>;
 Callbacks are passed as keyword arguments to `run()`. Optional callbacks are simply omitted:
 
 ```python
-from cake import TransitionCallbackReturn
+from jig import TransitionCallbackReturn
 from my_package.my_node import MyNodeSession, run
 
 @dataclass
@@ -366,13 +364,13 @@ if __name__ == "__main__":
 
 ## Automated Build System
 
-### `cake_auto_package()`
+### `jig_auto_package()`
 
-The `cake_auto_package()` macro eliminates the need for manual CMake configuration by following a simple convention-over-configuration approach.
+The `jig_auto_package()` macro eliminates the need for manual CMake configuration by following a simple convention-over-configuration approach.
 
 #### What It Does
 
-When you call `cake_auto_package()`, it:
+When you call `jig_auto_package()`, it:
 
 1. **Scans the `nodes/` directory** for subdirectories containing `interface.yaml` files
 2. **Auto-detects languages** by looking for `.cpp` or `.py` files in each node directory
@@ -431,7 +429,7 @@ All nodes will be built and registered automatically.
 
 ```cmake
 # Install additional directories to share/
-cake_auto_package(INSTALL_TO_SHARE
+jig_auto_package(INSTALL_TO_SHARE
     maps
     rviz
 )
@@ -447,13 +445,13 @@ Example: A node `my_node` in package `my_package` becomes:
 - Plugin: `my_package::MyNode`
 - Executable: `my_node`
 
-### `cake_auto_interface_package()`
+### `jig_auto_interface_package()`
 
-The `cake_auto_interface_package()` macro simplifies the creation of ROS 2 interface packages by automatically discovering and generating all message, service, and action definitions.
+The `jig_auto_interface_package()` macro simplifies the creation of ROS 2 interface packages by automatically discovering and generating all message, service, and action definitions.
 
 #### What It Does
 
-When you call `cake_auto_interface_package()`, it:
+When you call `jig_auto_interface_package()`, it:
 
 1. **Finds ament_cmake_auto** and discovers all dependencies from `package.xml`
 2. **Auto-discovers interface files** in standard ROS 2 directories:
@@ -470,8 +468,8 @@ When you call `cake_auto_interface_package()`, it:
 cmake_minimum_required(VERSION 3.22)
 project(my_interfaces)
 
-find_package(cake REQUIRED)
-cake_auto_interface_package()
+find_package(jig REQUIRED)
+jig_auto_interface_package()
 ```
 
 That's it! Just 2 lines of actual code. The macro handles everything else.
@@ -486,7 +484,7 @@ That's it! Just 2 lines of actual code. The macro handles everything else.
   <maintainer email="you@example.com">Your Name</maintainer>
   <license>Apache 2.0</license>
 
-  <buildtool_depend>cake</buildtool_depend>
+  <buildtool_depend>jig</buildtool_depend>
 
   <!-- msg/service/action dependencies go here (if required) -->
   <depend>std_msgs</depend>
@@ -545,7 +543,7 @@ ament_export_dependencies(rosidl_default_runtime)
 ament_package()
 ```
 
-With `cake_auto_interface_package()`, this becomes just 2 lines. All dependencies are automatically discovered from `package.xml`, and all interface files are automatically found.
+With `jig_auto_interface_package()`, this becomes just 2 lines. All dependencies are automatically discovered from `package.xml`, and all interface files are automatically found.
 
 
 ## Interface YAML Specification
@@ -554,7 +552,7 @@ The interface YAML file defines your node's ROS 2 interfaces.
 
 ### Schema Validation
 
-Cake provides a YAML Schema for `interface.yaml` files, enabling IDE autocompletion and validation.
+Jig provides a YAML Schema for `interface.yaml` files, enabling IDE autocompletion and validation.
 
 #### VS Code Setup
 
@@ -563,7 +561,7 @@ Add to your `.vscode/settings.json` (adjust the path to your workspace):
 ```json
 {
   "yaml.schemas": {
-    "<your_workspace>/install/cake/share/cake/schemas/interface.schema.yaml": ["**/interface.yaml"]
+    "<your_workspace>/install/jig/share/jig/schemas/interface.schema.yaml": ["**/interface.yaml"]
   }
 }
 ```
@@ -571,7 +569,7 @@ Add to your `.vscode/settings.json` (adjust the path to your workspace):
 Or add a modeline comment to individual files:
 
 ```yaml
-# yaml-language-server: $schema=<your_workspace>/install/cake/share/cake/schemas/interface.schema.yaml
+# yaml-language-server: $schema=<your_workspace>/install/jig/share/jig/schemas/interface.schema.yaml
 publishers:
     ...
 ```
@@ -685,7 +683,7 @@ All interface types (publishers, subscribers, services, service_clients, actions
 manually_created: false  # Set to true to completely exclude from code generation
 ```
 
-When `manually_created: true`, Cake will completely skip this interface during code generation - it won't appear in the generated session struct at all. This is useful when you want to document an interface in the YAML without having Cake generate code for it.
+When `manually_created: true`, Jig will completely skip this interface during code generation - it won't appear in the generated session struct at all. This is useful when you want to document an interface in the YAML without having Jig generate code for it.
 
 **Example:**
 ```yaml
@@ -875,7 +873,7 @@ services:
 This generates code that constructs the topic name at startup using the parameter value. In C++:
 ```cpp
 // Generated: topic name built from parameter
-cake::create_publisher<...>(sn, "/robot/" + cake::to_string(sn->params.robot_id) + "/cmd_vel", ...);
+jig::create_publisher<...>(sn, "/robot/" + jig::to_string(sn->params.robot_id) + "/cmd_vel", ...);
 ```
 
 In Python:
@@ -917,7 +915,7 @@ publishers:
       reliability: RELIABLE
 ```
 
-**`field_name` explained:** When a topic/service/action name contains `${param:...}`, Cake can't derive a valid C++ field name from it automatically, so you must provide one explicitly. The `field_name` is used as the struct member name in the generated session:
+**`field_name` explained:** When a topic/service/action name contains `${param:...}`, Jig can't derive a valid C++ field name from it automatically, so you must provide one explicitly. The `field_name` is used as the struct member name in the generated session:
 
 ```cpp
 // With field_name: cmd_vel
@@ -987,11 +985,11 @@ This generates map/dict-typed fields and loop initialization. In C++:
 
 ```cpp
 // Struct field is a map
-std::unordered_map<std::string, std::shared_ptr<cake::Subscriber<std_msgs::msg::String, SessionType>>> node_states;
+std::unordered_map<std::string, std::shared_ptr<jig::Subscriber<std_msgs::msg::String, SessionType>>> node_states;
 
 // Constructor loops over parameter values
 for (const auto& key : sn->params.managed_nodes) {
-    sn->subscribers.node_states[key] = cake::create_subscriber<std_msgs::msg::String>(
+    sn->subscribers.node_states[key] = jig::create_subscriber<std_msgs::msg::String>(
         sn, "/" + key + "/state", rclcpp::QoS(10).reliable());
 }
 ```
@@ -1000,11 +998,11 @@ In Python:
 
 ```python
 # Dataclass field is a dict
-node_states: dict[str, cake.Subscriber[String]] = field(default_factory=dict)
+node_states: dict[str, jig.Subscriber[String]] = field(default_factory=dict)
 
 # Initialization loops over parameter values
 for key in params.managed_nodes:
-    sn.subscribers.node_states[key] = cake.Subscriber[String]()
+    sn.subscribers.node_states[key] = jig.Subscriber[String]()
     sn.subscribers.node_states[key]._initialise(sn, String, f"/{key}/state", ...)
 ```
 
@@ -1029,7 +1027,7 @@ for name, client in sn.service_clients.change_state_clients.items():
 
 ## QoS Event Callbacks
 
-Cake subscribers and publishers support QoS event callbacks to react when deadlines are missed or liveliness changes.
+Jig subscribers and publishers support QoS event callbacks to react when deadlines are missed or liveliness changes.
 
 ### Deadline Callback
 
@@ -1184,7 +1182,7 @@ publishers:
 
 ## Autostart
 
-By default, Cake nodes **automatically transition through configure → activate** on startup, so they begin processing immediately without requiring an external lifecycle manager.
+By default, Jig nodes **automatically transition through configure → activate** on startup, so they begin processing immediately without requiring an external lifecycle manager.
 
 This is controlled by the `autostart` parameter (default: `true`). A zero-delay timer fires once on construction to call `trigger_configure()` followed by `trigger_activate()`. If either transition fails, an error is logged and the sequence stops.
 
@@ -1213,7 +1211,7 @@ ros2 lifecycle set /my_node activate
 
 ## State Heartbeat
 
-Every Cake node publishes its current lifecycle state on `~/state` at 10 Hz. This provides a lightweight monitoring and watchdog interface without polling the lifecycle service.
+Every Jig node publishes its current lifecycle state on `~/state` at 10 Hz. This provides a lightweight monitoring and watchdog interface without polling the lifecycle service.
 
 | Property | Value |
 |----------|-------|
@@ -1233,7 +1231,7 @@ ros2 topic echo /my_node/state
 
 ## Intra-Process Communication
 
-C++ Cake nodes enable **intra-process communication (IPC)** by default. When multiple Cake nodes run in the same process (e.g., via component composition), messages are passed by pointer rather than serialised, providing zero-copy performance.
+C++ Jig nodes enable **intra-process communication (IPC)** by default. When multiple Jig nodes run in the same process (e.g., via component composition), messages are passed by pointer rather than serialised, providing zero-copy performance.
 
 This is set automatically in the `BaseNode` constructor — no configuration is needed.
 
@@ -1241,7 +1239,7 @@ This is set automatically in the `BaseNode` constructor — no configuration is 
 
 ## Default QoS Handlers
 
-Cake automatically attaches **default QoS event handlers** to every generated subscriber. These handlers provide a safety net that deactivates the node when QoS contracts are violated:
+Jig automatically attaches **default QoS event handlers** to every generated subscriber. These handlers provide a safety net that deactivates the node when QoS contracts are violated:
 
 | Event | Behaviour |
 |-------|-----------|
@@ -1292,22 +1290,22 @@ You can also attach the default handlers to manually-created subscribers:
 
 **C++:**
 ```cpp
-#include <cake/default_qos_handlers.hpp>
+#include <jig/default_qos_handlers.hpp>
 
 // After creating a subscriber manually
-cake::attach_default_qos_handlers(sn->subscribers.my_sub);
+jig::attach_default_qos_handlers(sn->subscribers.my_sub);
 ```
 
 **Python:**
 ```python
-import cake
+import jig
 
-cake.attach_default_qos_handlers(sn.subscribers.my_sub)
+jig.attach_default_qos_handlers(sn.subscribers.my_sub)
 ```
 
 ## Threading Model
 
-Cake assumes a **single-threaded executor** for most callbacks. Session state (publishers, subscribers, parameters, timers, etc.) is not protected by any synchronization primitives, so concurrent access from multiple executor threads would be a data race. Multi-threading executors is out of scope for cake at the moment. External concurrent execution of work is still available to the user via standard threading, but synchronisation is the users responsibility.
+Jig assumes a **single-threaded executor** for most callbacks. Session state (publishers, subscribers, parameters, timers, etc.) is not protected by any synchronization primitives, so concurrent access from multiple executor threads would be a data race. Multi-threading executors is out of scope for jig at the moment. External concurrent execution of work is still available to the user via standard threading, but synchronisation is the users responsibility.
 
 ### Isolated Callback Group for Service/Action Clients
 
@@ -1319,18 +1317,18 @@ The background executor is created in the `BaseNode` constructor and torn down i
 
 ## Synchronous Service & Action Helpers (C++)
 
-Cake provides `<cake/call_sync.hpp>` with blocking wrappers for service and action clients. These are safe to call from lifecycle callbacks because the isolated background executor processes the responses.
+Jig provides `<jig/call_sync.hpp>` with blocking wrappers for service and action clients. These are safe to call from lifecycle callbacks because the isolated background executor processes the responses.
 
-### `cake::call_sync` — Synchronous Service Call
+### `jig::call_sync` — Synchronous Service Call
 
 ```cpp
-#include <cake/call_sync.hpp>
+#include <jig/call_sync.hpp>
 
 CallbackReturn on_configure(std::shared_ptr<Session> sn) {
     if (sn->service_clients.my_service->wait_for_service(2s)) {
         auto req = std::make_shared<MyService::Request>();
         req->data = 42;
-        auto resp = cake::call_sync<MyService>(sn->service_clients.my_service, req, 5s);
+        auto resp = jig::call_sync<MyService>(sn->service_clients.my_service, req, 5s);
         if (resp) {
             RCLCPP_INFO(sn->node.get_logger(), "Got response: %d", resp->result);
         } else {
@@ -1343,14 +1341,14 @@ CallbackReturn on_configure(std::shared_ptr<Session> sn) {
 
 Returns `nullptr` on timeout. Default timeout is 5 seconds.
 
-### `cake::send_goal_sync` — Synchronous Action Goal
+### `jig::send_goal_sync` — Synchronous Action Goal
 
 ```cpp
-#include <cake/call_sync.hpp>
+#include <jig/call_sync.hpp>
 
 auto goal = MyAction::Goal();
 goal.order = 5;
-auto goal_handle = cake::send_goal_sync<MyAction>(
+auto goal_handle = jig::send_goal_sync<MyAction>(
     sn->action_clients.my_action, goal, {}, 5s);
 if (goal_handle) {
     RCLCPP_INFO(sn->node.get_logger(), "Goal accepted");
@@ -1359,10 +1357,10 @@ if (goal_handle) {
 
 Returns `nullptr` if the goal is rejected or the request times out.
 
-### `cake::get_result_sync` — Wait for Action Result
+### `jig::get_result_sync` — Wait for Action Result
 
 ```cpp
-auto result = cake::get_result_sync<MyAction>(
+auto result = jig::get_result_sync<MyAction>(
     sn->action_clients.my_action, goal_handle, 5min);
 if (result) {
     RCLCPP_INFO(sn->node.get_logger(), "Result: %d", result->sequence.size());
@@ -1371,10 +1369,10 @@ if (result) {
 
 Returns `std::nullopt` on timeout. Default timeout is 5 minutes.
 
-### `cake::cancel_goal_sync` — Synchronous Goal Cancel
+### `jig::cancel_goal_sync` — Synchronous Goal Cancel
 
 ```cpp
-auto cancel_resp = cake::cancel_goal_sync<MyAction>(
+auto cancel_resp = jig::cancel_goal_sync<MyAction>(
     sn->action_clients.my_action, goal_handle, 5s);
 ```
 
@@ -1387,7 +1385,7 @@ Returns `nullptr` on timeout.
 ### Running Tests
 
 ```bash
-cd cake/tests
+cd jig/tests
 ./run_tests.sh
 ```
 
@@ -1396,7 +1394,7 @@ cd cake/tests
 After making changes to the code generator:
 
 ```bash
-cd cake/tests
+cd jig/tests
 ./run_tests.sh         # Generate new outputs
 ./accept_outputs.sh    # Accept as expected outputs
 ./run_tests.sh         # Verify tests pass
@@ -1404,18 +1402,18 @@ cd cake/tests
 
 ## Examples
 
-The `cake_example` package demonstrates usage with:
+The `jig_example` package demonstrates usage with:
 - **Multiple nodes**: C++ node (`my_node`) and Python node (`python_node`)
 - **Interface examples**: Publishers, subscribers, services, actions, and parameters
-- **Synchronous calls**: `my_node` uses `cake::call_sync` and `cake::send_goal_sync` in `on_configure` to call `python_node`'s service and action synchronously — demonstrating deadlock-free sync calls from lifecycle callbacks
+- **Synchronous calls**: `my_node` uses `jig::call_sync` and `jig::send_goal_sync` in `on_configure` to call `python_node`'s service and action synchronously — demonstrating deadlock-free sync calls from lifecycle callbacks
 - **Cascading deactivation**: `my_node` publishes a heartbeat; `python_node` subscribes with a 1 s deadline — if `my_node` deactivates, the default QoS handler automatically deactivates `python_node` too
-- **Minimal CMakeLists.txt**: Just 3 lines using `cake_auto_package()`
+- **Minimal CMakeLists.txt**: Just 3 lines using `jig_auto_package()`
 - **Component registration**: Automatic component plugin setup
 - **Package-level interfaces**: Optional `interfaces/` directory for shared definitions
 
 Structure:
 ```
-cake_example/
+jig_example/
 ├── nodes/
 │   ├── my_node/
 │   │   ├── interface.yaml
@@ -1429,24 +1427,24 @@ cake_example/
 │   └── transition_node.yaml
 ├── launch/
 │   └── test.launch.py
-├── CMakeLists.txt          # Just cake_auto_package()!
+├── CMakeLists.txt          # Just jig_auto_package()!
 └── package.xml
 ```
 
 Build and run the example:
 
 ```bash
-colcon build --packages-select cake_example
+colcon build --packages-select jig_example
 source install/setup.bash
 
 # Run C++ node
-ros2 run cake_example my_node
+ros2 run jig_example my_node
 
 # Run Python node
-ros2 run cake_example python_node
+ros2 run jig_example python_node
 
 # Load as component
-ros2 component standalone cake_example cake_example::MyNode
+ros2 component standalone jig_example jig_example::MyNode
 ```
 
 ## Contributing
