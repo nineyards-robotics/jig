@@ -1449,6 +1449,25 @@ ros2 run cake_example python_node
 ros2 component standalone cake_example cake_example::MyNode
 ```
 
+## Contributing
+
+This project requires a [Developer Certificate of Origin (DCO)](https://developercertificate.org/) sign-off on all commits. The DCO is a lightweight way to certify that you wrote or have the right to submit the code you are contributing.
+
+### Setup
+
+1. Clone the repo and install pre-commit hooks:
+
+```bash
+pre-commit install
+pre-commit install --hook-type prepare-commit-msg
+```
+
+The `prepare-commit-msg` hook will automatically add the `Signed-off-by` line to your commits. If you prefer to sign off manually, use `git commit -s`.
+
+### Pull Requests
+
+All pull requests are checked for DCO sign-off via CI. Commits without a `Signed-off-by` line will fail the check.
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
