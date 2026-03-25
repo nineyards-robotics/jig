@@ -2,6 +2,24 @@
 
 Jig is a declarative ROS 2 node scaffolding framework. You define a node's interface (publishers, subscribers, services, actions, parameters) in a YAML file, and jig generates strongly-typed C++ or Python lifecycle node scaffolding. Nodes use a **session-based composition** pattern (not inheritance) - lifecycle callbacks are free functions that receive a session object containing all ROS entities.
 
+## Installation
+
+Jig must be available in your colcon workspace. Clone it into `src/` alongside your packages:
+
+```bash
+cd ~/your_workspace/src
+git clone git@github.com:nineyards-robotics/jig.git
+```
+
+Then build the workspace as usual:
+
+```bash
+cd ~/your_workspace
+colcon build
+```
+
+Jig packages (`jig`, plus any packages you create) will be discovered and built automatically by colcon. Your packages just need `<depend>jig</depend>` in `package.xml` and `find_package(jig REQUIRED)` in `CMakeLists.txt`.
+
 ## Package Structure
 
 ```
