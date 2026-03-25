@@ -2,6 +2,10 @@
 
 Jig is a declarative ROS 2 node scaffolding framework. You define a node's interface (publishers, subscribers, services, actions, parameters) in a YAML file, and jig generates strongly-typed C++ or Python lifecycle node scaffolding. Nodes use a **session-based composition** pattern (not inheritance) - lifecycle callbacks are free functions that receive a session object containing all ROS entities.
 
+## Supported Distros
+
+Jazzy, Kilted, and Rolling. Humble is **not supported** (Python runtime requires `rclpy.event_handler`, introduced in Iron).
+
 ## Installation
 
 Jig must be available in your colcon workspace. Clone it into `src/` alongside your packages:
@@ -10,6 +14,8 @@ Jig must be available in your colcon workspace. Clone it into `src/` alongside y
 cd ~/your_workspace/src
 git clone git@github.com:nineyards-robotics/jig.git
 ```
+
+The jig repo contains two colcon packages (`jig/` and `jig_example/`) inside it — colcon discovers packages recursively, so this just works.
 
 Then build the workspace as usual:
 
@@ -52,6 +58,8 @@ jig_auto_package()
 ```
 
 For interface-only packages (no nodes, just msg/srv/action definitions), use `jig_auto_interface_package()` instead.
+
+**Note:** Jig always uses `ament_cmake` as the build type, even for Python-only nodes. You do **not** need `setup.py`, `setup.cfg`, or `ament_python`. Jig's CMake macros handle Python installation internally.
 
 **Minimal package.xml:**
 ```xml

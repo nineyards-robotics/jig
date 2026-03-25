@@ -4,6 +4,10 @@
 
 Jig transforms simple YAML interface definitions into strongly-typed C++ and Python ROS 2 lifecycle node scaffolding. Define your publishers, subscribers, services, actions and parameters in one simple file and Jig will handle the rest.
 
+## Supported ROS 2 Distros
+
+Jazzy, Kilted, and Rolling. Humble is **not supported** — the Python runtime requires `rclpy.event_handler`, which was introduced in Iron.
+
 ## Quick Start
 
 Jig uses a convention-over-configuration approach with automatic build system integration. Here's how to create a complete ROS 2 package in minutes:
