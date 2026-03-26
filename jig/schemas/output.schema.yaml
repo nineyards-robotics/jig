@@ -1,0 +1,259 @@
+$schema: https://json-schema.org/draft/2020-12/schema
+title: Jig Node Output Interface
+description: |
+  Schema for the generated output YAML — a complete runtime manifest of all interfaces
+  a jig node exposes. This includes user-defined interfaces from the input interface.yaml
+  as well as implicit interfaces (lifecycle services, parameter services, publishers, etc.).
+
+  Unlike the input schema (interface.schema.yaml), this schema:
+  - Does not support ${THIS_NODE} or ${THIS_PACKAGE} template variables (already resolved)
+  - Does not include codegen-only fields (field_name, manually_created)
+  - Includes a node.plugin field for C++ nodes
+  - QoS is optional on publishers (implicit publishers have no QoS specified)
+type: object
+additionalProperties: false
+
+properties:
+  node:
+    $ref: "#/$defs/node"
+  parameters:
+    type: object
+    description: ROS parameters including user-defined and implicit (e.g. autostart)
+    additionalProperties:
+      $ref: "parameter.schema.yaml#/$defs/parameter_definition"
+  publishers:
+    type: array
+    description: List of topic publishers (user-defined and implicit)
+    items:
+      $ref: "#/$defs/publisher"
+  subscribers:
+    type: array
+    description: List of topic subscribers
+    items:
+      $ref: "#/$defs/subscriber"
+  services:
+    type: array
+    description: List of service servers (user-defined and implicit)
+    items:
+      $ref: "#/$defs/service"
+  service_clients:
+    type: array
+    description: List of service clients
+    items:
+      $ref: "#/$defs/serviceClient"
+  actions:
+    type: array
+    description: List of action servers
+    items:
+      $ref: "#/$defs/action"
+  action_clients:
+    type: array
+    description: List of action clients
+    items:
+      $ref: "#/$defs/actionClient"
+
+$defs:
+  # Parameter reference pattern: ${param:parameter_name}
+  parameterRef:
+    type: string
+    pattern: '^\$\{param:[a-zA-Z_][a-zA-Z0-9_]*\}$'
+
+  # Topic/service/action name that may contain ${param:name} or ${for_each_param:name} references
+  topicNameWithParams:
+    type: string
+    description: "Topic/service/action name that may contain ${param:name} or ${for_each_param:name} references, or ~/name for node-private names."
+    pattern: '^[a-zA-Z0-9/_~${}: ]+$'
+
+  node:
+    type: object
+    description: "Node metadata with resolved name and package."
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: "Resolved node name."
+        pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+      package:
+        type: string
+        description: "Resolved package name."
+        pattern: ^[a-zA-Z][a-zA-Z0-9_]*$
+      plugin:
+        type: string
+        description: "C++ component plugin name (e.g. package::NodeName). Only present for C++ nodes."
+        pattern: ^[a-zA-Z][a-zA-Z0-9_]*(::[a-zA-Z][a-zA-Z0-9_]*)+$
+
+  topicName:
+    type: string
+    description: "ROS topic name. Valid characters: letters, digits, forward slash (/), underscore (_), tilde (~)"
+    pattern: ^[a-zA-Z0-9/_~]+$
+
+  rosMessageType:
+    type: string
+    description: "ROS message type in format: package/msg/TypeName"
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/msg/[A-Z][a-zA-Z0-9]*$
+    examples:
+      - std_msgs/msg/String
+      - geometry_msgs/msg/Twist
+      - lifecycle_msgs/msg/TransitionEvent
+
+  rosServiceType:
+    type: string
+    description: "ROS service type in format: package/srv/TypeName"
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/srv/[A-Z][a-zA-Z0-9]*$
+    examples:
+      - std_srvs/srv/Trigger
+      - lifecycle_msgs/srv/ChangeState
+
+  rosActionType:
+    type: string
+    description: "ROS action type in format: package/action/TypeName"
+    pattern: ^[a-zA-Z][a-zA-Z0-9_]*/action/[A-Z][a-zA-Z0-9]*$
+    examples:
+      - example_interfaces/action/Fibonacci
+      - nav2_msgs/action/NavigateToPose
+
+  qos:
+    type: object
+    description: QoS configuration for publishers and subscribers. Fields can use ${param:name} to reference read_only parameters.
+    additionalProperties: false
+    required:
+      - history
+      - reliability
+    properties:
+      history:
+        description: "History policy: positive integer for KEEP_LAST(n), 'ALL' for KEEP_ALL, or ${param:name} reference"
+        oneOf:
+          - type: integer
+            minimum: 1
+          - const: "ALL"
+          - $ref: "#/$defs/parameterRef"
+      reliability:
+        description: "Reliability policy or ${param:name} reference"
+        oneOf:
+          - enum: [BEST_EFFORT, RELIABLE]
+          - $ref: "#/$defs/parameterRef"
+      durability:
+        description: "Durability policy or ${param:name} reference"
+        oneOf:
+          - enum: [TRANSIENT_LOCAL, VOLATILE]
+          - $ref: "#/$defs/parameterRef"
+      deadline_ms:
+        description: "Deadline duration in milliseconds or ${param:name} reference"
+        oneOf:
+          - type: integer
+            minimum: 0
+          - $ref: "#/$defs/parameterRef"
+      lifespan_ms:
+        description: "Lifespan duration in milliseconds or ${param:name} reference"
+        oneOf:
+          - type: integer
+            minimum: 0
+          - $ref: "#/$defs/parameterRef"
+      liveliness:
+        description: "Liveliness policy or ${param:name} reference"
+        oneOf:
+          - enum: [AUTOMATIC, MANUAL_BY_TOPIC]
+          - $ref: "#/$defs/parameterRef"
+      lease_duration_ms:
+        description: "Liveliness lease duration in milliseconds or ${param:name} reference"
+        oneOf:
+          - type: integer
+            minimum: 0
+          - $ref: "#/$defs/parameterRef"
+
+  publisher:
+    type: object
+    description: Topic publisher definition
+    required:
+      - topic
+      - type
+    additionalProperties: false
+    properties:
+      topic:
+        $ref: "#/$defs/topicNameWithParams"
+        description: Topic name to publish on
+      type:
+        $ref: "#/$defs/rosMessageType"
+        description: ROS message type
+      qos:
+        $ref: "#/$defs/qos"
+        description: QoS configuration (present for user-defined publishers, omitted for implicit)
+
+  subscriber:
+    type: object
+    description: Topic subscriber definition
+    required:
+      - topic
+      - type
+      - qos
+    additionalProperties: false
+    properties:
+      topic:
+        $ref: "#/$defs/topicNameWithParams"
+        description: Topic name to subscribe to
+      type:
+        $ref: "#/$defs/rosMessageType"
+        description: ROS message type
+      qos:
+        $ref: "#/$defs/qos"
+        description: QoS configuration
+
+  service:
+    type: object
+    description: Service server definition
+    required:
+      - name
+      - type
+    additionalProperties: false
+    properties:
+      name:
+        $ref: "#/$defs/topicNameWithParams"
+        description: Service name
+      type:
+        $ref: "#/$defs/rosServiceType"
+        description: ROS service type
+
+  serviceClient:
+    type: object
+    description: Service client definition
+    required:
+      - name
+      - type
+    additionalProperties: false
+    properties:
+      name:
+        $ref: "#/$defs/topicNameWithParams"
+        description: Service name to connect to
+      type:
+        $ref: "#/$defs/rosServiceType"
+        description: ROS service type
+
+  action:
+    type: object
+    description: Action server definition
+    required:
+      - name
+      - type
+    additionalProperties: false
+    properties:
+      name:
+        $ref: "#/$defs/topicNameWithParams"
+        description: Action name
+      type:
+        $ref: "#/$defs/rosActionType"
+        description: ROS action type
+
+  actionClient:
+    type: object
+    description: Action client definition
+    required:
+      - name
+      - type
+    additionalProperties: false
+    properties:
+      name:
+        $ref: "#/$defs/topicNameWithParams"
+        description: Action name to connect to
+      type:
+        $ref: "#/$defs/rosActionType"
+        description: ROS action type
