@@ -45,6 +45,53 @@ class EntityConfig:
 # Constants
 DUMMY_PARAM_NAME = "__jig_dummy"
 
+# Implicit interfaces that all jig lifecycle nodes expose at runtime.
+# These are added to the generated output YAML to create a complete runtime manifest.
+
+# Fields to strip from user-defined entities in the output YAML (codegen-only concerns)
+OUTPUT_STRIP_FIELDS = {"field_name", "manually_created"}
+
+IMPLICIT_LIFECYCLE_SERVICES: List[Dict[str, str]] = [
+    {"name": "~/change_state", "type": "lifecycle_msgs/srv/ChangeState"},
+    {"name": "~/get_state", "type": "lifecycle_msgs/srv/GetState"},
+    {"name": "~/get_available_states", "type": "lifecycle_msgs/srv/GetAvailableStates"},
+    {"name": "~/get_available_transitions", "type": "lifecycle_msgs/srv/GetAvailableTransitions"},
+    {"name": "~/get_transition_graph", "type": "lifecycle_msgs/srv/GetTransitionGraph"},
+]
+
+IMPLICIT_PARAMETER_SERVICES: List[Dict[str, str]] = [
+    {"name": "~/describe_parameters", "type": "rcl_interfaces/srv/DescribeParameters"},
+    {"name": "~/get_parameters", "type": "rcl_interfaces/srv/GetParameters"},
+    {"name": "~/get_parameter_types", "type": "rcl_interfaces/srv/GetParameterTypes"},
+    {"name": "~/list_parameters", "type": "rcl_interfaces/srv/ListParameters"},
+    {"name": "~/set_parameters", "type": "rcl_interfaces/srv/SetParameters"},
+    {"name": "~/set_parameters_atomically", "type": "rcl_interfaces/srv/SetParametersAtomically"},
+]
+
+IMPLICIT_TYPE_DESCRIPTION_SERVICES: List[Dict[str, str]] = [
+    {"name": "~/get_type_description", "type": "type_description_interfaces/srv/GetTypeDescription"},
+]
+
+IMPLICIT_SERVICES: List[Dict[str, str]] = (
+    IMPLICIT_LIFECYCLE_SERVICES + IMPLICIT_PARAMETER_SERVICES + IMPLICIT_TYPE_DESCRIPTION_SERVICES
+)
+
+IMPLICIT_PUBLISHERS: List[Dict[str, str]] = [
+    {"topic": "~/transition_event", "type": "lifecycle_msgs/msg/TransitionEvent"},
+    {"topic": "~/state", "type": "lifecycle_msgs/msg/State"},
+    {"topic": "/parameter_events", "type": "rcl_interfaces/msg/ParameterEvent"},
+    {"topic": "/rosout", "type": "rcl_interfaces/msg/Log"},
+]
+
+IMPLICIT_PARAMETERS: Dict[str, Any] = {
+    "autostart": {
+        "type": "bool",
+        "default_value": True,
+        "description": "Automatically configure and activate the node on startup",
+        "read_only": True,
+    },
+}
+
 # Entity configurations mapping schema entity types to their template requirements
 ENTITY_CONFIGS: Dict[EntityKind, EntityConfig] = {
     EntityKind.PUBLISHER: EntityConfig(
@@ -968,6 +1015,14 @@ def get_plugin_name(interface_data: Dict[str, Any]) -> str:
         return class_name
 
 
+def _strip_codegen_fields(entities: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Remove codegen-only fields (field_name, manually_created) from entity dicts."""
+    stripped = []
+    for entity in entities:
+        stripped.append({k: v for k, v in entity.items() if k not in OUTPUT_STRIP_FIELDS})
+    return stripped
+
+
 def generate_interface_yaml(
     interface_yaml_path: Path,
     interface_data: Dict[str, Any],
@@ -976,7 +1031,10 @@ def generate_interface_yaml(
     is_cpp: bool,
 ) -> str:
     """
-    Generate processed interface YAML with token replacement and plugin field (for C++).
+    Generate processed output YAML — a complete runtime manifest of the node's interfaces.
+
+    Takes the user's interface.yaml, resolves build-time tokens, strips codegen-only fields,
+    and adds implicit interfaces (lifecycle services, parameter services, publishers, etc.).
 
     Args:
         interface_yaml_path: Path to the original interface.yaml file
@@ -1017,6 +1075,27 @@ def generate_interface_yaml(
     if is_cpp:
         plugin_name = get_plugin_name(interface_data)
         yaml_data["node"]["plugin"] = plugin_name
+
+    # Strip codegen-only fields from user-defined entities
+    entity_list_keys = ["publishers", "subscribers", "services", "service_clients", "actions", "action_clients"]
+    for key in entity_list_keys:
+        if key in yaml_data:
+            yaml_data[key] = _strip_codegen_fields(yaml_data[key])
+
+    # Add implicit parameters
+    if "parameters" not in yaml_data:
+        yaml_data["parameters"] = {}
+    yaml_data["parameters"].update(IMPLICIT_PARAMETERS)
+
+    # Add implicit publishers
+    if "publishers" not in yaml_data:
+        yaml_data["publishers"] = []
+    yaml_data["publishers"].extend(IMPLICIT_PUBLISHERS)
+
+    # Add implicit services (lifecycle + parameter + type description)
+    if "services" not in yaml_data:
+        yaml_data["services"] = []
+    yaml_data["services"].extend(IMPLICIT_SERVICES)
 
     # Serialize back to YAML for consistent formatting
     yaml_content = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
