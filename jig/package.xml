@@ -23,10 +23,10 @@
   <depend>rclcpp_components</depend>
   <depend>rclcpp_lifecycle</depend>
   <depend>lifecycle_msgs</depend>
+  <depend>python3-yaml</depend>
+  <depend>python3-jinja2</depend>
+  <depend>python3-jsonschema</depend>
 
-  <exec_depend>python3-yaml</exec_depend>
-  <exec_depend>python3-jinja2</exec_depend>
-  <exec_depend>python3-jsonschema</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
 
   <export>
