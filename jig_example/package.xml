@@ -4,7 +4,7 @@
   <name>jig_example</name>
   <version>0.0.0</version>
   <description>An example node using the jig system.</description>
-  <maintainer email="info@greenforgelabs.com.au">Alistair English</maintainer>
+  <maintainer email="hello@alistairenglish.com">Alistair English</maintainer>
   <license>Apache 2.0</license>
 
   <depend>rclcpp</depend>
