@@ -21,7 +21,7 @@ class parameters:
         # for detecting if the parameter struct has been updated
         stamp_ = Time()
 
-        __jig_dummy = True
+        _jig_dummy = True
 
 
 
@@ -91,8 +91,8 @@ class parameters:
             updated_params = self.get_params()
 
             for param in parameters:
-                if param.name == self.prefix_ + "__jig_dummy":
-                    updated_params.__jig_dummy = param.value
+                if param.name == self.prefix_ + "_jig_dummy":
+                    updated_params._jig_dummy = param.value
                     self.logger_.debug(param.name + ": " + param.type_.name + " = " + str(param.value))
 
 
@@ -109,16 +109,16 @@ class parameters:
         def declare_params(self):
             updated_params = self.get_params()
             # declare all parameters and give default values to non-required ones
-            if not self.node_.has_parameter(self.prefix_ + "__jig_dummy"):
+            if not self.node_.has_parameter(self.prefix_ + "_jig_dummy"):
                 descriptor = ParameterDescriptor(description="Dummy parameter (jig generates this when no parameters are defined)", read_only = True)
-                parameter = updated_params.__jig_dummy
-                self.node_.declare_parameter(self.prefix_ + "__jig_dummy", parameter, descriptor)
+                parameter = updated_params._jig_dummy
+                self.node_.declare_parameter(self.prefix_ + "_jig_dummy", parameter, descriptor)
 
             # TODO: need validation
             # get parameters and fill struct fields
-            param = self.node_.get_parameter(self.prefix_ + "__jig_dummy")
+            param = self.node_.get_parameter(self.prefix_ + "_jig_dummy")
             self.logger_.debug(param.name + ": " + param.type_.name + " = " + str(param.value))
-            updated_params.__jig_dummy = param.value
+            updated_params._jig_dummy = param.value
 
 
             self.update_internal_params(updated_params)

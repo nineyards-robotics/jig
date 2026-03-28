@@ -1,5 +1,5 @@
 test_package::publishers_only:
-  __jig_dummy:
+  _jig_dummy:
     type: bool
     default_value: true
     description: Dummy parameter (jig generates this when no parameters are defined)

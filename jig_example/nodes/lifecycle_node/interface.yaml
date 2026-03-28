@@ -1,0 +1,17 @@
+subscribers:
+    - topic: heartbeat
+      type: std_msgs/msg/Bool
+      qos:
+        history: 1
+        reliability: RELIABLE
+        deadline_ms: 500
+        liveliness: AUTOMATIC
+        lease_duration_ms: 500
+
+publishers:
+    - topic: state_report
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
+        durability: TRANSIENT_LOCAL

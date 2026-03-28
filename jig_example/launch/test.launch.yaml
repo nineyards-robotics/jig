@@ -1,0 +1,23 @@
+launch:
+  - node:
+      pkg: jig_example
+      exec: echo_node
+
+  - node:
+      pkg: jig_example
+      exec: action_node
+
+  - node:
+      pkg: jig_example
+      exec: py_echo_node
+
+  - node:
+      pkg: jig_example
+      exec: lifecycle_node
+      param:
+        - name: autostart
+          value: false
+
+  - node:
+      pkg: jig_example
+      exec: for_each_node

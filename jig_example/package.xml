@@ -14,8 +14,11 @@
   <depend>std_msgs</depend>
   <depend>example_interfaces</depend>
 
-  <!-- for launch files -->
-  <exec_depend>clingwrap</exec_depend>
+  <test_depend>launch_testing</test_depend>
+  <test_depend>launch_testing_ament_cmake</test_depend>
+  <test_depend>launch_ros</test_depend>
+  <test_depend>lifecycle_msgs</test_depend>
+  <test_depend>rcl_interfaces</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
