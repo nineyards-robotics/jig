@@ -21,4 +21,9 @@ list(APPEND ${PROJECT_NAME}_CONFIG_EXTRAS cmake/jig_auto_package.cmake cmake/jig
 
 ament_python_install_package(${PROJECT_NAME})
 
+if(BUILD_TESTING)
+    find_package(ament_cmake_pytest REQUIRED)
+    ament_add_pytest_test(test_generate_node_interface tests/test_generate_node_interface.py)
+endif()
+
 ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR INSTALL_TO_SHARE schemas)
