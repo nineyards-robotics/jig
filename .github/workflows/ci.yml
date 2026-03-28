@@ -31,17 +31,10 @@ jobs:
     strategy:
       matrix:
         ros_distro: ${{ fromJson(needs.setup.outputs.distros) }}
-        include:
-          - ros_distro: humble
-            docker_image: ros:humble-ros-base
-          - ros_distro: jazzy
-            docker_image: ros:jazzy-ros-base
-          - ros_distro: kilted
-            docker_image: ros:kilted-ros-base
       fail-fast: false
     name: build (${{ matrix.ros_distro }})
     container:
-      image: ${{ matrix.docker_image }}
+      image: ros:${{ matrix.ros_distro }}-ros-base
     steps:
       - uses: actions/checkout@v4
 
