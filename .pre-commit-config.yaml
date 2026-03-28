@@ -25,11 +25,7 @@ repos:
   rev: v0.6.13
   hooks:
   - id: cmake-format
-- repo: local
+- repo: https://github.com/nineyards-robotics/dco-sign-off
+  rev: v1.0.0
   hooks:
   - id: dco-sign-off
-    name: DCO Sign-Off
-    entry: scripts/dco-sign-off.sh
-    language: system
-    stages: [prepare-commit-msg]
-    always_run: true
