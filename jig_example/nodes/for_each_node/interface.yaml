@@ -1,0 +1,27 @@
+parameters:
+    target_nodes:
+        type: string_array
+        default_value: ["alpha", "beta"]
+        description: "List of target node names to subscribe to"
+        read_only: true
+    robot_id:
+        type: string
+        default_value: "bot1"
+        description: "Robot identifier used in publisher topic name"
+        read_only: true
+
+subscribers:
+    - topic: "${for_each_param:target_nodes}/status"
+      field_name: target_status
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
+
+publishers:
+    - topic: "${param:robot_id}/aggregated_status"
+      field_name: aggregated_status
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE

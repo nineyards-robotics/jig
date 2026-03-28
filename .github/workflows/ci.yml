@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main, humble, jazzy, kilted]
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      distros: ${{ steps.set-distros.outputs.distros }}
+    steps:
+      - id: set-distros
+        run: |
+          # For PRs, use the target branch; for pushes, use the branch name
+          BRANCH="${{ github.base_ref || github.ref_name }}"
+          if [[ "$BRANCH" == "humble" ]]; then
+            echo 'distros=["humble"]' >> "$GITHUB_OUTPUT"
+          elif [[ "$BRANCH" == "jazzy" ]]; then
+            echo 'distros=["jazzy"]' >> "$GITHUB_OUTPUT"
+          elif [[ "$BRANCH" == "kilted" ]]; then
+            echo 'distros=["kilted"]' >> "$GITHUB_OUTPUT"
+          else
+            echo 'distros=["humble","jazzy","kilted"]' >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-test:
+    needs: setup
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        ros_distro: ${{ fromJson(needs.setup.outputs.distros) }}
+        include:
+          - ros_distro: humble
+            docker_image: ros:humble-ros-base
+          - ros_distro: jazzy
+            docker_image: ros:jazzy-ros-base
+          - ros_distro: kilted
+            docker_image: ros:kilted-ros-base
+      fail-fast: false
+    name: build (${{ matrix.ros_distro }})
+    container:
+      image: ${{ matrix.docker_image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ros-tooling/action-ros-ci@v0.4
+        with:
+          target-ros2-distro: ${{ matrix.ros_distro }}
+          package-name: jig jig_example
+          coverage-result: false

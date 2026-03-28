@@ -1402,49 +1402,63 @@ cd jig/tests
 
 ## Examples
 
-The `jig_example` package demonstrates usage with:
-- **Multiple nodes**: C++ node (`my_node`) and Python node (`python_node`)
-- **Interface examples**: Publishers, subscribers, services, actions, and parameters
-- **Synchronous calls**: `my_node` uses `jig::call_sync` and `jig::send_goal_sync` in `on_configure` to call `python_node`'s service and action synchronously — demonstrating deadlock-free sync calls from lifecycle callbacks
-- **Cascading deactivation**: `my_node` publishes a heartbeat; `python_node` subscribes with a 1 s deadline — if `my_node` deactivates, the default QoS handler automatically deactivates `python_node` too
+The `jig_example` package demonstrates a range of Jig features across five nodes in both C++ and Python:
+
+- **`echo_node`** (C++) — Publishers, subscribers, services, service clients, timers, and parameterized QoS. A comprehensive example showing most Jig features in one node.
+- **`py_echo_node`** (Python) — Python equivalent of the echo node with timer creation via `jig.create_timer()` and service request handlers.
+- **`action_node`** (C++) — Action servers with goal validation and feedback, including single-goal and goal-replacement modes. Also demonstrates action clients and periodic timers.
+- **`lifecycle_node`** (Python) — Full lifecycle callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`) with advanced QoS settings including deadline monitoring, liveliness detection, and transient-local durability.
+- **`for_each_node`** (Python) — Dynamic subscriber creation using `${for_each_param:...}` to aggregate status from a configurable list of target nodes.
+
+Additional highlights:
 - **Minimal CMakeLists.txt**: Just 3 lines using `jig_auto_package()`
-- **Component registration**: Automatic component plugin setup
-- **Package-level interfaces**: Optional `interfaces/` directory for shared definitions
+- **Component registration**: Automatic component plugin setup for C++ nodes
+- **Integration tests**: Comprehensive test suite covering pub/sub, services, actions, parameters, lifecycle transitions, QoS handlers, and cross-language communication
 
 Structure:
 ```
 jig_example/
 ├── nodes/
-│   ├── my_node/
+│   ├── action_node/          # C++ action server/client example
 │   │   ├── interface.yaml
-│   │   ├── my_node.cpp
-│   │   └── my_node.hpp
-│   └── python_node/
+│   │   ├── action_node.cpp
+│   │   └── action_node.hpp
+│   ├── echo_node/            # C++ pub/sub/service/timer example
+│   │   ├── interface.yaml
+│   │   ├── echo_node.cpp
+│   │   └── echo_node.hpp
+│   ├── for_each_node/        # Python dynamic collections example
+│   │   ├── interface.yaml
+│   │   └── for_each_node.py
+│   ├── lifecycle_node/       # Python lifecycle + advanced QoS example
+│   │   ├── interface.yaml
+│   │   └── lifecycle_node.py
+│   └── py_echo_node/         # Python pub/sub/service/timer example
 │       ├── interface.yaml
-│       └── python_node.py
-├── interfaces/
-│   ├── external_node.yaml
-│   └── transition_node.yaml
+│       └── py_echo_node.py
 ├── launch/
-│   └── test.launch.py
-├── CMakeLists.txt          # Just jig_auto_package()!
+│   └── test.launch.yaml
+├── test/                     # Integration tests
+├── CMakeLists.txt            # Just jig_auto_package()!
 └── package.xml
 ```
 
-Build and run the example:
+Build and run the examples:
 
 ```bash
 colcon build --packages-select jig_example
 source install/setup.bash
 
-# Run C++ node
-ros2 run jig_example my_node
+# Run individual nodes
+ros2 run jig_example echo_node
+ros2 run jig_example py_echo_node
+ros2 run jig_example action_node
+ros2 run jig_example lifecycle_node
+ros2 run jig_example for_each_node
 
-# Run Python node
-ros2 run jig_example python_node
-
-# Load as component
-ros2 component standalone jig_example jig_example::MyNode
+# Load C++ nodes as components
+ros2 component standalone jig_example jig_example::EchoNode
+ros2 component standalone jig_example jig_example::ActionNode
 ```
 
 ## Contributing
@@ -1465,6 +1479,30 @@ The `prepare-commit-msg` hook will automatically add the `Signed-off-by` line to
 ### Pull Requests
 
 All pull requests are checked for DCO sign-off via CI. Commits without a `Signed-off-by` line will fail the check.
+
+### Branching Strategy
+
+Development happens on `main`. Each supported ROS distro has a dedicated branch (e.g., `humble`, `jazzy`) that is **continuously rebased** onto `main`.
+
+```
+main:     A --- B --- C --- D
+                              \
+humble:                        D --- H1 --- H2  (distro-specific patches)
+jazzy:                         D --- J1          (distro-specific patches)
+```
+
+**How it works:**
+
+- All new features and bug fixes are developed against `main` via pull requests.
+- Distro branches carry a small number of distro-specific patches (e.g., API compatibility shims, version pins) as commits on top of `main`.
+- After `main` advances, distro branches are rebased onto it, keeping the patches at the tip.
+- Distro branches are **force-pushed** after each rebase.
+
+**Guidelines for contributors:**
+
+- For general features and fixes, base your branch on `main` and open your PR against `main`.
+- For distro-specific fixes, base your branch on the target distro branch and open your PR directly against it. Distro PRs are **squash-merged** to keep the patch stack clean for rebasing.
+- Do not merge distro branches into `main` or vice versa — the relationship is always rebase, never merge.
 
 ## License
 

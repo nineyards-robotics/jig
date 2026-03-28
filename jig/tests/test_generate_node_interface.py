@@ -459,7 +459,7 @@ publishers:
 
     # Should have namespace and dummy parameter
     assert "test_package::test_node:" in params_content
-    assert "__jig_dummy:" in params_content
+    assert "_jig_dummy:" in params_content
 
 
 def get_python_test_cases():

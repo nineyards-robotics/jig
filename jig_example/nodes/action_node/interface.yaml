@@ -1,0 +1,9 @@
+actions:
+    - name: compute
+      type: example_interfaces/action/Fibonacci
+    - name: compute_replace
+      type: example_interfaces/action/Fibonacci
+
+action_clients:
+    - name: compute
+      type: example_interfaces/action/Fibonacci

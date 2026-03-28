@@ -1,0 +1,31 @@
+parameters:
+    message_prefix:
+        type: string
+        default_value: "py"
+        description: "Prefix prepended to all echoed messages"
+        read_only: true
+    publish_rate_sec:
+        type: double
+        default_value: 0.1
+        description: "Timer publish rate in seconds"
+        read_only: true
+
+publishers:
+    - topic: output
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
+
+subscribers:
+    - topic: input
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
+
+services:
+    - name: add_two_ints
+      type: example_interfaces/srv/AddTwoInts
+    - name: get_counter
+      type: example_interfaces/srv/Trigger

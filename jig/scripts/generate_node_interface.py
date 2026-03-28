@@ -43,7 +43,7 @@ class EntityConfig:
 
 
 # Constants
-DUMMY_PARAM_NAME = "__jig_dummy"
+DUMMY_PARAM_NAME = "_jig_dummy"
 
 # Implicit interfaces that all jig lifecycle nodes expose at runtime.
 # These are added to the generated output YAML to create a complete runtime manifest.
