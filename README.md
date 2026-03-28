@@ -1480,6 +1480,30 @@ The `prepare-commit-msg` hook will automatically add the `Signed-off-by` line to
 
 All pull requests are checked for DCO sign-off via CI. Commits without a `Signed-off-by` line will fail the check.
 
+### Branching Strategy
+
+Development happens on `main`. Each supported ROS distro has a dedicated branch (e.g., `humble`, `jazzy`) that is **continuously rebased** onto `main`.
+
+```
+main:     A --- B --- C --- D
+                              \
+humble:                        D --- H1 --- H2  (distro-specific patches)
+jazzy:                         D --- J1          (distro-specific patches)
+```
+
+**How it works:**
+
+- All new features and bug fixes are developed against `main` via pull requests.
+- Distro branches carry a small number of distro-specific patches (e.g., API compatibility shims, version pins) as commits on top of `main`.
+- After `main` advances, distro branches are rebased onto it, keeping the patches at the tip.
+- Distro branches are **force-pushed** after each rebase.
+
+**Guidelines for contributors:**
+
+- For general features and fixes, base your branch on `main` and open your PR against `main`.
+- For distro-specific fixes, base your branch on the target distro branch and open your PR directly against it. Distro PRs are **squash-merged** to keep the patch stack clean for rebasing.
+- Do not merge distro branches into `main` or vice versa — the relationship is always rebase, never merge.
+
 ## License
 
 Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE) for details.
