@@ -1,7 +1,3 @@
-node:
-  name: simple_node
-  package: test_package
-  plugin: test_package::SimpleNode
 publishers:
 - topic: /cmd_vel
   type: geometry_msgs/msg/Twist
@@ -22,6 +18,10 @@ subscribers:
   qos:
     history: 10
     reliability: RELIABLE
+node:
+  name: simple_node
+  package: test_package
+  plugin: test_package::SimpleNode
 parameters:
   autostart:
     type: bool

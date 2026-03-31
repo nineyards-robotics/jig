@@ -1,7 +1,3 @@
-node:
-  name: subscribers_only
-  package: test_package
-  plugin: test_package::SubscribersOnly
 subscribers:
 - topic: sensor_data
   type: sensor_msgs/msg/LaserScan
@@ -13,6 +9,10 @@ subscribers:
   qos:
     history: 1
     reliability: BEST_EFFORT
+node:
+  name: subscribers_only
+  package: test_package
+  plugin: test_package::SubscribersOnly
 parameters:
   autostart:
     type: bool

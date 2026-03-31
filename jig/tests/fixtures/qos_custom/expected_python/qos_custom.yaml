@@ -1,6 +1,3 @@
-node:
-  name: qos_custom
-  package: test_package
 publishers:
 - topic: reliable_topic
   type: std_msgs/msg/String
@@ -35,6 +32,9 @@ subscribers:
     reliability: RELIABLE
     deadline_ms: 1000
     lifespan_ms: 500
+node:
+  name: qos_custom
+  package: test_package
 parameters:
   autostart:
     type: bool

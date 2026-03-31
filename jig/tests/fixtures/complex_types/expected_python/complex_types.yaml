@@ -1,6 +1,3 @@
-node:
-  name: complex_types
-  package: test_package
 publishers:
 - topic: pose
   type: geometry_msgs/msg/PoseStamped
@@ -31,6 +28,9 @@ subscribers:
   qos:
     history: 1
     reliability: BEST_EFFORT
+node:
+  name: complex_types
+  package: test_package
 parameters:
   autostart:
     type: bool

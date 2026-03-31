@@ -1,11 +1,11 @@
-node:
-  name: action_servers_only
-  package: test_package
 actions:
 - name: fibonacci
   type: example_interfaces/action/Fibonacci
 - name: /math/compute
   type: example_interfaces/action/Fibonacci
+node:
+  name: action_servers_only
+  package: test_package
 parameters:
   autostart:
     type: bool

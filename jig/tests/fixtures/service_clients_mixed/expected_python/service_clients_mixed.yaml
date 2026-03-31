@@ -1,6 +1,3 @@
-node:
-  name: service_clients_mixed
-  package: test_package
 publishers:
 - topic: /status
   type: std_msgs/msg/String
@@ -53,6 +50,9 @@ service_clients:
   type: example_interfaces/srv/AddTwoInts
 - name: compute
   type: example_interfaces/srv/AddTwoInts
+node:
+  name: service_clients_mixed
+  package: test_package
 parameters:
   autostart:
     type: bool

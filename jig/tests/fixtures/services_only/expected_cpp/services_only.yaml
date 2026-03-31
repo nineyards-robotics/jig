@@ -1,7 +1,3 @@
-node:
-  name: services_only
-  package: test_package
-  plugin: test_package::ServicesOnly
 services:
 - name: add_two_ints
   type: example_interfaces/srv/AddTwoInts
@@ -31,6 +27,10 @@ services:
   type: rcl_interfaces/srv/SetParametersAtomically
 - name: ~/get_type_description
   type: type_description_interfaces/srv/GetTypeDescription
+node:
+  name: services_only
+  package: test_package
+  plugin: test_package::ServicesOnly
 parameters:
   autostart:
     type: bool
