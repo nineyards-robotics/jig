@@ -1,7 +1,3 @@
-node:
-    name: ${THIS_NODE}
-    package: ${THIS_PACKAGE}
-
 publishers:
     - topic: /cmd_vel
       type: geometry_msgs/msg/Twist

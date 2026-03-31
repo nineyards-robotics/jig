@@ -1,7 +1,3 @@
-node:
-  name: ${THIS_NODE}
-  package: ${THIS_PACKAGE}
-
 action_clients:
   - name: /fibonacci
     type: example_interfaces/action/Fibonacci
