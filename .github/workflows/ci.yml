@@ -22,7 +22,7 @@ jobs:
           elif [[ "$BRANCH" == "kilted" ]]; then
             echo 'distros=["kilted"]' >> "$GITHUB_OUTPUT"
           else
-            echo 'distros=["humble","jazzy","kilted"]' >> "$GITHUB_OUTPUT"
+            echo 'distros=["jazzy","kilted"]' >> "$GITHUB_OUTPUT"
           fi
 
   build-and-test:
