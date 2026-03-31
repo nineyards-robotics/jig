@@ -2482,6 +2482,113 @@ service_clients:
     assert "for (const auto& key : sn->params.managed_nodes)" in content
 
 
+def test_tf_section_valid(tmp_path):
+    """Test that tf section with at least one feature enabled is accepted."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """node:
+    name: test_node
+    package: test_package
+
+tf:
+  listener: true
+"""
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"Generator should accept tf with listener: true:\n{result.stderr}"
+
+
+def test_tf_section_empty_is_noop(tmp_path):
+    """Test that tf: {} is accepted (all defaults false, no TF code generated)."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """node:
+    name: test_node
+    package: test_package
+
+tf: {}
+"""
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0, f"Generator should accept tf: {{}} as a no-op:\n{result.stderr}"
+
+    # Verify no TF includes are generated
+    with open(tmp_path / "test_node_interface.hpp", "r") as f:
+        content = f.read()
+    assert "tf2_ros" not in content, "Empty tf section should not generate any TF code"
+
+
+def test_tf_section_unknown_key_fails(tmp_path):
+    """Test that tf section with unknown keys is rejected."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """node:
+    name: test_node
+    package: test_package
+
+tf:
+  listener: true
+  unknown_key: true
+"""
+    )
+
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode != 0, "Generator should reject tf with unknown keys"
+
+
 if __name__ == "__main__":
     # Allow running directly with python
     pytest.main([__file__, "-v"])

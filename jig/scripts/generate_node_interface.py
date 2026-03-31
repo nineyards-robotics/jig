@@ -83,6 +83,23 @@ IMPLICIT_PUBLISHERS: List[Dict[str, str]] = [
     {"topic": "/rosout", "type": "rcl_interfaces/msg/Log"},
 ]
 
+IMPLICIT_TF_LISTENER_SUBSCRIBERS: List[Dict[str, Any]] = [
+    {"topic": "/tf", "type": "tf2_msgs/msg/TFMessage", "qos": {"history": 100, "reliability": "BEST_EFFORT"}},
+    {
+        "topic": "/tf_static",
+        "type": "tf2_msgs/msg/TFMessage",
+        "qos": {"history": "ALL", "reliability": "RELIABLE", "durability": "TRANSIENT_LOCAL"},
+    },
+]
+
+IMPLICIT_TF_BROADCASTER_PUBLISHERS: List[Dict[str, str]] = [
+    {"topic": "/tf", "type": "tf2_msgs/msg/TFMessage"},
+]
+
+IMPLICIT_TF_STATIC_BROADCASTER_PUBLISHERS: List[Dict[str, str]] = [
+    {"topic": "/tf_static", "type": "tf2_msgs/msg/TFMessage"},
+]
+
 IMPLICIT_PARAMETERS: Dict[str, Any] = {
     "autostart": {
         "type": "bool",
@@ -1097,6 +1114,17 @@ def generate_interface_yaml(
         yaml_data["services"] = []
     yaml_data["services"].extend(IMPLICIT_SERVICES)
 
+    # Add implicit TF interfaces based on tf config
+    tf_config = yaml_data.pop("tf", {})
+    if tf_config.get("listener", False):
+        if "subscribers" not in yaml_data:
+            yaml_data["subscribers"] = []
+        yaml_data["subscribers"].extend(IMPLICIT_TF_LISTENER_SUBSCRIBERS)
+    if tf_config.get("broadcaster", False):
+        yaml_data["publishers"].extend(IMPLICIT_TF_BROADCASTER_PUBLISHERS)
+    if tf_config.get("static_broadcaster", False):
+        yaml_data["publishers"].extend(IMPLICIT_TF_STATIC_BROADCASTER_PUBLISHERS)
+
     # Serialize back to YAML for consistent formatting
     yaml_content = yaml.dump(yaml_data, default_flow_style=False, sort_keys=False)
 
@@ -1144,6 +1172,12 @@ def generate_header(interface_data: Dict[str, Any]) -> str:
     all_entity_lists = [publishers, subscribers, services, service_clients, actions, action_clients]
     has_for_each_param = any(entity.get("for_each_param") for entity_list in all_entity_lists for entity in entity_list)
 
+    # Extract TF config
+    tf_config = interface_data.get("tf", {})
+    tf_listener = tf_config.get("listener", False)
+    tf_broadcaster = tf_config.get("broadcaster", False)
+    tf_static_broadcaster = tf_config.get("static_broadcaster", False)
+
     # Render template
     return template.render(
         node_name=node_name,
@@ -1161,6 +1195,9 @@ def generate_header(interface_data: Dict[str, Any]) -> str:
         action_clients=action_clients,
         needs_qos_helpers=needs_qos_helpers,
         has_for_each_param=has_for_each_param,
+        tf_listener=tf_listener,
+        tf_broadcaster=tf_broadcaster,
+        tf_static_broadcaster=tf_static_broadcaster,
     )
 
 
@@ -1241,6 +1278,12 @@ def generate_python_interface(interface_data: Dict[str, Any]) -> str:
     # Check if any timers might exist (for template logic)
     has_timers = True  # timers are created at runtime, always need reset/cancel support
 
+    # Extract TF config
+    tf_config = interface_data.get("tf", {})
+    tf_listener = tf_config.get("listener", False)
+    tf_broadcaster = tf_config.get("broadcaster", False)
+    tf_static_broadcaster = tf_config.get("static_broadcaster", False)
+
     # Render template
     return template.render(
         node_name=node_name,
@@ -1258,6 +1301,9 @@ def generate_python_interface(interface_data: Dict[str, Any]) -> str:
         needs_qos_helpers=needs_qos_helpers,
         has_for_each_param=has_for_each_param,
         has_timers=has_timers,
+        tf_listener=tf_listener,
+        tf_broadcaster=tf_broadcaster,
+        tf_static_broadcaster=tf_static_broadcaster,
     )
 
 

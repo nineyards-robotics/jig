@@ -42,6 +42,8 @@ properties:
     description: List of action clients
     items:
       $ref: "#/$defs/actionClient"
+  tf:
+    $ref: "#/$defs/tf"
 
 $defs:
   # Parameter reference pattern: ${param:parameter_name}
@@ -301,4 +303,22 @@ $defs:
       manually_created:
         type: boolean
         description: If true, skip code generation for this action client (for documentation only)
+        default: false
+
+  tf:
+    type: object
+    description: "TF2 transform support. Creates tf2 buffer and optionally listener, broadcaster, static broadcaster."
+    additionalProperties: false
+    properties:
+      listener:
+        type: boolean
+        description: "Create tf2_ros::Buffer and tf2_ros::TransformListener"
+        default: false
+      broadcaster:
+        type: boolean
+        description: "Create tf2_ros::TransformBroadcaster"
+        default: false
+      static_broadcaster:
+        type: boolean
+        description: "Create tf2_ros::StaticTransformBroadcaster"
         default: false

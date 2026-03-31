@@ -1,23 +1,14 @@
+node:
+  name: tf_broadcaster_static_broadcaster
+  package: test_package
+  plugin: test_package::TfBroadcasterStaticBroadcaster
 parameters:
-  update_rate:
-    type: double
-    default_value: 10.0
-    description: Update rate in Hz
-  robot_name:
-    type: string
-    default_value: robot1
-    description: Name of the robot
   autostart:
     type: bool
     default_value: true
     description: Automatically configure and activate the node on startup
     read_only: true
 publishers:
-- topic: /status
-  type: std_msgs/msg/String
-  qos:
-    history: 10
-    reliability: RELIABLE
 - topic: ~/transition_event
   type: lifecycle_msgs/msg/TransitionEvent
 - topic: ~/state
@@ -26,9 +17,10 @@ publishers:
   type: rcl_interfaces/msg/ParameterEvent
 - topic: /rosout
   type: rcl_interfaces/msg/Log
-node:
-  name: with_parameters
-  package: test_package
+- topic: /tf
+  type: tf2_msgs/msg/TFMessage
+- topic: /tf_static
+  type: tf2_msgs/msg/TFMessage
 services:
 - name: ~/change_state
   type: lifecycle_msgs/srv/ChangeState

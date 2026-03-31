@@ -27,6 +27,18 @@ import jig
 {%- if needs_qos_helpers %}
 from jig.qos_helpers import _to_reliability, _to_durability, _to_liveliness
 {%- endif %}
+{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
+from tf2_ros import Buffer as TF2Buffer
+{%- endif %}
+{%- if tf_listener %}
+from tf2_ros import TransformListener as TF2TransformListener
+{%- endif %}
+{%- if tf_broadcaster %}
+from tf2_ros import TransformBroadcaster as TF2TransformBroadcaster
+{%- endif %}
+{%- if tf_static_broadcaster %}
+from tf2_ros import StaticTransformBroadcaster as TF2StaticTransformBroadcaster
+{%- endif %}
 
 from typing import Callable, TypeVar
 
@@ -134,6 +146,18 @@ class {{ session_class }}(jig.Session):
 
     param_listener: ParamListener
     params: Params
+{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
+    tf_buffer: TF2Buffer
+{%- endif %}
+{%- if tf_listener %}
+    tf_listener: TF2TransformListener
+{%- endif %}
+{%- if tf_broadcaster %}
+    tf_broadcaster: TF2TransformBroadcaster
+{%- endif %}
+{%- if tf_static_broadcaster %}
+    tf_static_broadcaster: TF2StaticTransformBroadcaster
+{%- endif %}
 
 
 T = TypeVar("T", bound={{ session_class }})
@@ -165,6 +189,20 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
         # init parameters (must be before publishers/subscribers for param refs in names)
         param_listener = ParamListener(node)
         params = param_listener.get_params()
+{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
+
+        # init tf
+        tf_buffer = TF2Buffer()
+{%- if tf_listener %}
+        tf_listener = TF2TransformListener(tf_buffer, node)
+{%- endif %}
+{%- if tf_broadcaster %}
+        tf_broadcaster = TF2TransformBroadcaster(node)
+{%- endif %}
+{%- if tf_static_broadcaster %}
+        tf_static_broadcaster = TF2StaticTransformBroadcaster(node)
+{%- endif %}
+{%- endif %}
 
         # create publishers - using default constructors
         publishers = Publishers()
@@ -224,6 +262,18 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
             action_clients=action_clients,
             param_listener=param_listener,
             params=params,
+{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
+            tf_buffer=tf_buffer,
+{%- endif %}
+{%- if tf_listener %}
+            tf_listener=tf_listener,
+{%- endif %}
+{%- if tf_broadcaster %}
+            tf_broadcaster=tf_broadcaster,
+{%- endif %}
+{%- if tf_static_broadcaster %}
+            tf_static_broadcaster=tf_static_broadcaster,
+{%- endif %}
         )
 
         # initialise publishers

@@ -12,9 +12,13 @@
   <depend>jig</depend>
 
   <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
   <depend>example_interfaces</depend>
+  <depend>geometry_msgs</depend>
+  <depend>tf2_ros</depend>
 
   <test_depend>launch_testing</test_depend>
+  <test_depend>tf2_msgs</test_depend>
   <test_depend>launch_testing_ament_cmake</test_depend>
   <test_depend>launch_ros</test_depend>
   <test_depend>lifecycle_msgs</test_depend>
