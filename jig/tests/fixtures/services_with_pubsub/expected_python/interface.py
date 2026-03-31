@@ -35,6 +35,7 @@ class Subscribers:
 class Services:
     reset: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
     compute: jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response])
+    private_status: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
 
 
 @dataclass
@@ -135,6 +136,7 @@ class _ServicesWithPubsubNode(jig.BaseNode[T]):
         # initialise services
         sn.services.reset._initialise(sn, Trigger, "/reset")
         sn.services.compute._initialise(sn, AddTwoInts, "compute")
+        sn.services.private_status._initialise(sn, Trigger, "~/private_status")
 
         return sn
 
@@ -154,6 +156,7 @@ class _ServicesWithPubsubNode(jig.BaseNode[T]):
         sn.subscribers.command._destroy(sn.node)
         sn.services.reset._destroy(sn.node)
         sn.services.compute._destroy(sn.node)
+        sn.services.private_status._destroy(sn.node)
 
 
 def run(

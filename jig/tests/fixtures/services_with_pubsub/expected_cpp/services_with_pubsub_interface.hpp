@@ -29,6 +29,7 @@ template <typename SessionType> struct ServicesWithPubsubSubscribers {
 template <typename SessionType> struct ServicesWithPubsubServices {
     std::shared_ptr<jig::Service<std_srvs::srv::Trigger, SessionType>> reset;
     std::shared_ptr<jig::Service<example_interfaces::srv::AddTwoInts, SessionType>> compute;
+    std::shared_ptr<jig::Service<std_srvs::srv::Trigger, SessionType>> private_status;
 };
 
 template <typename SessionType> struct ServicesWithPubsubServiceClients {};
@@ -83,6 +84,7 @@ class ServicesWithPubsubBase : public jig::BaseNode<"services_with_pubsub", Sess
         // init services
         sn->services.reset = jig::create_service<std_srvs::srv::Trigger>(sn, "/reset");
         sn->services.compute = jig::create_service<example_interfaces::srv::AddTwoInts>(sn, "compute");
+        sn->services.private_status = jig::create_service<std_srvs::srv::Trigger>(sn, "~/private_status");
         return sn;
     }
 
