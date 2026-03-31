@@ -49,7 +49,7 @@ class ActionClients:
 
 
 @dataclass
-class ServicesDefaultQosSession(jig.Session, Generic[SessionT]):
+class ServicesDefaultQosSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

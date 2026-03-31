@@ -57,7 +57,7 @@ class ActionClients:
 
 
 @dataclass
-class ComplexTypesSession(jig.Session, Generic[SessionT]):
+class ComplexTypesSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

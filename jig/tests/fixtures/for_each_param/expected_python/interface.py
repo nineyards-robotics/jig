@@ -54,7 +54,7 @@ class ActionClients:
 
 
 @dataclass
-class ForEachParamSession(jig.Session, Generic[SessionT]):
+class ForEachParamSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

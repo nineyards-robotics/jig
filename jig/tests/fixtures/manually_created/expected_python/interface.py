@@ -53,7 +53,7 @@ class ActionClients:
 
 
 @dataclass
-class ManuallyCreatedSession(jig.Session, Generic[SessionT]):
+class ManuallyCreatedSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

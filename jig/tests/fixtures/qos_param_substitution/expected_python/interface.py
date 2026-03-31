@@ -55,7 +55,7 @@ class ActionClients:
 
 
 @dataclass
-class QosParamSubstitutionSession(jig.Session, Generic[SessionT]):
+class QosParamSubstitutionSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

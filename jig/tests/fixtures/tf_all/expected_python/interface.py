@@ -50,7 +50,7 @@ class ActionClients:
 
 
 @dataclass
-class TfAllSession(jig.Session, Generic[SessionT]):
+class TfAllSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

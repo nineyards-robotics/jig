@@ -56,7 +56,7 @@ class ActionClients:
 
 
 @dataclass
-class NameParamSubstitutionSession(jig.Session, Generic[SessionT]):
+class NameParamSubstitutionSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

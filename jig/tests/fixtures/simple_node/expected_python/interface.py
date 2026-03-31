@@ -53,7 +53,7 @@ class ActionClients:
 
 
 @dataclass
-class SimpleNodeSession(jig.Session, Generic[SessionT]):
+class SimpleNodeSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

@@ -48,7 +48,7 @@ class ActionClients:
 
 
 @dataclass
-class TfListenerOnlySession(jig.Session, Generic[SessionT]):
+class TfListenerOnlySession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

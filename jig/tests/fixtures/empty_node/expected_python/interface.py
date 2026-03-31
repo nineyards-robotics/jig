@@ -46,7 +46,7 @@ class ActionClients:
 
 
 @dataclass
-class EmptyNodeSession(jig.Session, Generic[SessionT]):
+class EmptyNodeSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

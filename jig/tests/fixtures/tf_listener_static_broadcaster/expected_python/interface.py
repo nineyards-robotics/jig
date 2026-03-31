@@ -49,7 +49,7 @@ class ActionClients:
 
 
 @dataclass
-class TfListenerStaticBroadcasterSession(jig.Session, Generic[SessionT]):
+class TfListenerStaticBroadcasterSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

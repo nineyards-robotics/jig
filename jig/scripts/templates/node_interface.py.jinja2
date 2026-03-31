@@ -138,7 +138,7 @@ class ActionClients:
 
 
 @dataclass
-class {{ session_class }}(jig.Session, Generic[SessionT]):
+class {{ session_class }}(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

@@ -48,7 +48,7 @@ class ActionClients:
 
 
 @dataclass
-class ServicesOnlySession(jig.Session, Generic[SessionT]):
+class ServicesOnlySession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

@@ -52,7 +52,7 @@ class ActionClients:
 
 
 @dataclass
-class WithParametersSession(jig.Session, Generic[SessionT]):
+class WithParametersSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

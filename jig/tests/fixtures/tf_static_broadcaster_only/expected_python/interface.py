@@ -48,7 +48,7 @@ class ActionClients:
 
 
 @dataclass
-class TfStaticBroadcasterOnlySession(jig.Session, Generic[SessionT]):
+class TfStaticBroadcasterOnlySession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]

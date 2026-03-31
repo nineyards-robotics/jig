@@ -57,7 +57,7 @@ class ActionClients:
 
 
 @dataclass
-class ServiceClientsMixedSession(jig.Session, Generic[SessionT]):
+class ServiceClientsMixedSession(jig.Session[SessionT]):
     publishers: Publishers[SessionT]
     subscribers: Subscribers[SessionT]
     services: Services[SessionT]
