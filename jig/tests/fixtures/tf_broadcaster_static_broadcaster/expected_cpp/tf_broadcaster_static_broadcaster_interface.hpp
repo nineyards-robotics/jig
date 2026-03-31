@@ -7,7 +7,6 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <jig/base_node.hpp>
 #include <jig/session.hpp>
-#include <tf2_ros/buffer.h>
 #include <tf2_ros/transform_broadcaster.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <test_package/tf_broadcaster_static_broadcaster_parameters.hpp>
@@ -34,7 +33,6 @@ template <typename DerivedSessionType> struct TfBroadcasterStaticBroadcasterSess
     TfBroadcasterStaticBroadcasterServiceClients<DerivedSessionType> service_clients;
     TfBroadcasterStaticBroadcasterActions<DerivedSessionType> actions;
     TfBroadcasterStaticBroadcasterActionClients<DerivedSessionType> action_clients;
-    std::shared_ptr<tf2_ros::Buffer> tf_buffer;
     std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster;
     std::shared_ptr<ParamListener> param_listener;
@@ -68,7 +66,6 @@ class TfBroadcasterStaticBroadcasterBase : public jig::BaseNode<"tf_broadcaster_
         sn->params = sn->param_listener->get_params();
 
         // init tf
-        sn->tf_buffer = std::make_shared<tf2_ros::Buffer>(sn->node.get_clock());
         sn->tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(&sn->node);
         sn->tf_static_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(&sn->node);
         return sn;

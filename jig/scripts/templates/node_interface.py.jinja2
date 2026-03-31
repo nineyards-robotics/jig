@@ -27,10 +27,8 @@ import jig
 {%- if needs_qos_helpers %}
 from jig.qos_helpers import _to_reliability, _to_durability, _to_liveliness
 {%- endif %}
-{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
-from tf2_ros import Buffer as TF2Buffer
-{%- endif %}
 {%- if tf_listener %}
+from tf2_ros import Buffer as TF2Buffer
 from tf2_ros import TransformListener as TF2TransformListener
 {%- endif %}
 {%- if tf_broadcaster %}
@@ -148,10 +146,8 @@ class {{ session_class }}(jig.Session[SessionT]):
 
     param_listener: ParamListener
     params: Params
-{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
-    tf_buffer: TF2Buffer
-{%- endif %}
 {%- if tf_listener %}
+    tf_buffer: TF2Buffer
     tf_listener: TF2TransformListener
 {%- endif %}
 {%- if tf_broadcaster %}
@@ -194,8 +190,9 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
 
         # init tf
-        tf_buffer = TF2Buffer()
+{%- endif %}
 {%- if tf_listener %}
+        tf_buffer = TF2Buffer()
         tf_listener = TF2TransformListener(tf_buffer, node)
 {%- endif %}
 {%- if tf_broadcaster %}
@@ -203,7 +200,6 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- endif %}
 {%- if tf_static_broadcaster %}
         tf_static_broadcaster = TF2StaticTransformBroadcaster(node)
-{%- endif %}
 {%- endif %}
 
         # create publishers - using default constructors
@@ -264,10 +260,8 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
             action_clients=action_clients,
             param_listener=param_listener,
             params=params,
-{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
-            tf_buffer=tf_buffer,
-{%- endif %}
 {%- if tf_listener %}
+            tf_buffer=tf_buffer,
             tf_listener=tf_listener,
 {%- endif %}
 {%- if tf_broadcaster %}

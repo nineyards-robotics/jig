@@ -7,7 +7,6 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <jig/base_node.hpp>
 #include <jig/session.hpp>
-#include <tf2_ros/buffer.h>
 #include <tf2_ros/static_transform_broadcaster.h>
 #include <test_package/tf_static_broadcaster_only_parameters.hpp>
 
@@ -33,7 +32,6 @@ template <typename DerivedSessionType> struct TfStaticBroadcasterOnlySession : j
     TfStaticBroadcasterOnlyServiceClients<DerivedSessionType> service_clients;
     TfStaticBroadcasterOnlyActions<DerivedSessionType> actions;
     TfStaticBroadcasterOnlyActionClients<DerivedSessionType> action_clients;
-    std::shared_ptr<tf2_ros::Buffer> tf_buffer;
     std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster;
     std::shared_ptr<ParamListener> param_listener;
     Params params;
@@ -66,7 +64,6 @@ class TfStaticBroadcasterOnlyBase : public jig::BaseNode<"tf_static_broadcaster_
         sn->params = sn->param_listener->get_params();
 
         // init tf
-        sn->tf_buffer = std::make_shared<tf2_ros::Buffer>(sn->node.get_clock());
         sn->tf_static_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(&sn->node);
         return sn;
     }

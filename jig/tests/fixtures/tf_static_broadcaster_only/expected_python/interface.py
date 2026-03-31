@@ -7,7 +7,6 @@ from dataclasses import dataclass, field
 import rclpy
 
 import jig
-from tf2_ros import Buffer as TF2Buffer
 from tf2_ros import StaticTransformBroadcaster as TF2StaticTransformBroadcaster
 
 from typing import Callable, Generic, TypeVar
@@ -58,7 +57,6 @@ class TfStaticBroadcasterOnlySession(jig.Session[SessionT]):
 
     param_listener: ParamListener
     params: Params
-    tf_buffer: TF2Buffer
     tf_static_broadcaster: TF2StaticTransformBroadcaster
 
 
@@ -93,7 +91,6 @@ class _TfStaticBroadcasterOnlyNode(jig.BaseNode[T]):
         params = param_listener.get_params()
 
         # init tf
-        tf_buffer = TF2Buffer()
         tf_static_broadcaster = TF2StaticTransformBroadcaster(node)
 
         # create publishers - using default constructors
@@ -124,7 +121,6 @@ class _TfStaticBroadcasterOnlyNode(jig.BaseNode[T]):
             action_clients=action_clients,
             param_listener=param_listener,
             params=params,
-            tf_buffer=tf_buffer,
             tf_static_broadcaster=tf_static_broadcaster,
         )
 
