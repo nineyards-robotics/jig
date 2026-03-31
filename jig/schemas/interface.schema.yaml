@@ -53,7 +53,7 @@ $defs:
   topicNameWithParams:
     type: string
     description: "Topic/service/action name that may contain ${param:name} or ${for_each_param:name} references. Use ${for_each_param:name} with a string_array parameter to generate a map/dict of entities keyed by parameter values."
-    pattern: '^[a-zA-Z0-9/_${}: ]+$'
+    pattern: '^[a-zA-Z0-9/_~${}: ]+$'
 
   node:
     type: object
@@ -71,8 +71,8 @@ $defs:
 
   topicName:
     type: string
-    description: "ROS topic name. Valid characters: letters, digits, forward slash (/), underscore (_)"
-    pattern: ^[a-zA-Z0-9/_]+$
+    description: "ROS topic name. Valid characters: letters, digits, forward slash (/), underscore (_), tilde (~)"
+    pattern: ^[a-zA-Z0-9/_~]+$
 
   rosMessageType:
     type: string

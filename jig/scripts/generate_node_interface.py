@@ -527,7 +527,7 @@ def name_to_field_name(name: str) -> str:
     Convert topic/service/action name to valid C++ identifier.
     Example: /cmd_vel -> cmd_vel, /robot/status -> robot_status
     """
-    return name.replace("/", "_").lstrip("_")
+    return name.replace("/", "_").replace("~", "").lstrip("_")
 
 
 def generate_qos_code(qos_spec: Dict[str, Any]) -> tuple[str, bool]:
