@@ -8,7 +8,7 @@ from jig import TransitionCallbackReturn
 
 
 @dataclass
-class MySession(LifecycleNodeSession):
+class MySession(LifecycleNodeSession["MySession"]):
     pass
 
 

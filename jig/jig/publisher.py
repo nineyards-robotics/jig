@@ -4,19 +4,20 @@ from rclpy.qos import QoSProfile
 
 from .session import Session
 
-from typing import Any, Callable, Generic, Optional, TypeVar
+from typing import Callable, Generic, Optional, TypeVar
 
+SessionT = TypeVar("SessionT", bound=Session)
 MessageT = TypeVar("MessageT")
 
 
-class Publisher(Generic[MessageT]):
+class Publisher(Generic[SessionT, MessageT]):
     _publisher: RclpyPublisher | None = None
-    _deadline_callback: Optional[Callable[[Any, QoSOfferedDeadlineMissedInfo], None]] = None
-    _liveliness_callback: Optional[Callable[[Any, QoSLivelinessLostInfo], None]] = None
+    _deadline_callback: Optional[Callable[[SessionT, QoSOfferedDeadlineMissedInfo], None]] = None
+    _liveliness_callback: Optional[Callable[[SessionT, QoSLivelinessLostInfo], None]] = None
 
     def _initialise(
         self,
-        session: Session,
+        session: SessionT,
         msg_type: type[MessageT],
         topic_name: str,
         qos: QoSProfile | int,
@@ -49,14 +50,14 @@ class Publisher(Generic[MessageT]):
             raise RuntimeError("Publisher has not been initialised! This is an error in jig.")
         return self._publisher
 
-    def set_deadline_callback(self, callback: Callable[[Any, QoSOfferedDeadlineMissedInfo], None]):
+    def set_deadline_callback(self, callback: Callable[[SessionT, QoSOfferedDeadlineMissedInfo], None]):
         if self._publisher is None:
             raise RuntimeError(
                 "Can't set deadline callback. Publisher has not been initialised! This is an error in jig."
             )
         self._deadline_callback = callback
 
-    def set_liveliness_callback(self, callback: Callable[[Any, QoSLivelinessLostInfo], None]):
+    def set_liveliness_callback(self, callback: Callable[[SessionT, QoSLivelinessLostInfo], None]):
         if self._publisher is None:
             raise RuntimeError(
                 "Can't set liveliness callback. Publisher has not been initialised! This is an error in jig."

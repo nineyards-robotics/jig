@@ -8,7 +8,7 @@ from jig import TransitionCallbackReturn
 
 
 @dataclass
-class MySession(ForEachNodeSession):
+class MySession(ForEachNodeSession["MySession"]):
     latest_status: dict = field(default_factory=dict)
 
 

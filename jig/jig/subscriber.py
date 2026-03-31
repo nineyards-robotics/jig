@@ -8,6 +8,7 @@ from .session import Session
 
 from typing import Any, Callable, Generic, Optional, TypeVar, cast
 
+SessionT = TypeVar("SessionT", bound=Session)
 MessageT = TypeVar("MessageT")
 
 
@@ -20,15 +21,15 @@ def get_no_callback_warning_logger(topic_name: str) -> Callable[[Session, Any], 
     return inner
 
 
-class Subscriber(Generic[MessageT]):
+class Subscriber(Generic[SessionT, MessageT]):
     _subscription: Subscription | None = None
-    _callback: Callable[[Any, MessageT], None]
-    _deadline_callback: Optional[Callable[[Any, QoSRequestedDeadlineMissedInfo], None]] = None
-    _liveliness_callback: Optional[Callable[[Any, QoSLivelinessChangedInfo], None]] = None
+    _callback: Callable[[SessionT, MessageT], None]
+    _deadline_callback: Optional[Callable[[SessionT, QoSRequestedDeadlineMissedInfo], None]] = None
+    _liveliness_callback: Optional[Callable[[SessionT, QoSLivelinessChangedInfo], None]] = None
 
     def _initialise(
         self,
-        session: Session,
+        session: SessionT,
         msg_type: type[MessageT],
         topic_name: str,
         qos: QoSProfile | int,
@@ -59,19 +60,19 @@ class Subscriber(Generic[MessageT]):
             node.destroy_subscription(self._subscription)
             self._subscription = None
 
-    def set_callback(self, callback: Callable[[Any, MessageT], None]):
+    def set_callback(self, callback: Callable[[SessionT, MessageT], None]):
         if self._subscription is None:
             raise RuntimeError("Can't set callback. Subscriber has not been initialised! This is an error in jig.")
         self._callback = callback
 
-    def set_deadline_callback(self, callback: Callable[[Any, QoSRequestedDeadlineMissedInfo], None]):
+    def set_deadline_callback(self, callback: Callable[[SessionT, QoSRequestedDeadlineMissedInfo], None]):
         if self._subscription is None:
             raise RuntimeError(
                 "Can't set deadline callback. Subscriber has not been initialised! This is an error in jig."
             )
         self._deadline_callback = callback
 
-    def set_liveliness_callback(self, callback: Callable[[Any, QoSLivelinessChangedInfo], None]):
+    def set_liveliness_callback(self, callback: Callable[[SessionT, QoSLivelinessChangedInfo], None]):
         if self._subscription is None:
             raise RuntimeError(
                 "Can't set liveliness callback. Subscriber has not been initialised! This is an error in jig."

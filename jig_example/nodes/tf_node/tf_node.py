@@ -11,7 +11,7 @@ from jig import TransitionCallbackReturn
 
 
 @dataclass
-class MySession(TfNodeSession):
+class MySession(TfNodeSession["MySession"]):
     pass
 
 

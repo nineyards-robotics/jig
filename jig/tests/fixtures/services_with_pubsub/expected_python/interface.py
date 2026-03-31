@@ -16,26 +16,28 @@ from std_srvs.srv import Trigger
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    status: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    command: jig.Subscriber[String] = field(default_factory=jig.Subscriber[String])
+class Publishers(Generic[SessionT]):
+    status: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
-    reset: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
-    compute: jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response])
-    private_status: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
+class Subscribers(Generic[SessionT]):
+    command: jig.Subscriber[SessionT, String] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
+    reset: jig.Service[SessionT, Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service)
+    compute: jig.Service[SessionT, AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service)
+    private_status: jig.Service[SessionT, Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service)
 
 
 @dataclass
@@ -54,10 +56,10 @@ class ActionClients:
 
 
 @dataclass
-class ServicesWithPubsubSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ServicesWithPubsubSession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

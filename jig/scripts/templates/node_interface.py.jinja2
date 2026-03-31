@@ -40,19 +40,21 @@ from tf2_ros import TransformBroadcaster as TF2TransformBroadcaster
 from tf2_ros import StaticTransformBroadcaster as TF2StaticTransformBroadcaster
 {%- endif %}
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
+SessionT = TypeVar("SessionT")
+
 
 @dataclass
-class Publishers:
+class Publishers(Generic[SessionT]):
 {%- if publishers %}
 {%- for pub in publishers %}
 {%- if pub.for_each_param %}
-    {{ pub.field_name }}: dict[str, jig.Publisher[{{ pub.msg_class }}]] = field(default_factory=dict)
+    {{ pub.field_name }}: dict[str, jig.Publisher[SessionT, {{ pub.msg_class }}]] = field(default_factory=dict)
 {%- else %}
-    {{ pub.field_name }}: jig.Publisher[{{ pub.msg_class }}] = field(default_factory=jig.Publisher[{{ pub.msg_class }}])
+    {{ pub.field_name }}: jig.Publisher[SessionT, {{ pub.msg_class }}] = field(default_factory=jig.Publisher)
 {%- endif %}
 {%- endfor %}
 {%- else %}
@@ -61,13 +63,13 @@ class Publishers:
 
 
 @dataclass
-class Subscribers:
+class Subscribers(Generic[SessionT]):
 {%- if subscribers %}
 {%- for sub in subscribers %}
 {%- if sub.for_each_param %}
-    {{ sub.field_name }}: dict[str, jig.Subscriber[{{ sub.msg_class }}]] = field(default_factory=dict)
+    {{ sub.field_name }}: dict[str, jig.Subscriber[SessionT, {{ sub.msg_class }}]] = field(default_factory=dict)
 {%- else %}
-    {{ sub.field_name }}: jig.Subscriber[{{ sub.msg_class }}] = field(default_factory=jig.Subscriber[{{ sub.msg_class }}])
+    {{ sub.field_name }}: jig.Subscriber[SessionT, {{ sub.msg_class }}] = field(default_factory=jig.Subscriber)
 {%- endif %}
 {%- endfor %}
 {%- else %}
@@ -76,13 +78,13 @@ class Subscribers:
 
 
 @dataclass
-class Services:
+class Services(Generic[SessionT]):
 {%- if services %}
 {%- for srv in services %}
 {%- if srv.for_each_param %}
-    {{ srv.field_name }}: dict[str, jig.Service[{{ srv.srv_class }}, {{ srv.srv_class }}.Request, {{ srv.srv_class }}.Response]] = field(default_factory=dict)
+    {{ srv.field_name }}: dict[str, jig.Service[SessionT, {{ srv.srv_class }}, {{ srv.srv_class }}.Request, {{ srv.srv_class }}.Response]] = field(default_factory=dict)
 {%- else %}
-    {{ srv.field_name }}: jig.Service[{{ srv.srv_class }}, {{ srv.srv_class }}.Request, {{ srv.srv_class }}.Response] = field(default_factory=jig.Service[{{ srv.srv_class }}, {{ srv.srv_class }}.Request, {{ srv.srv_class }}.Response])
+    {{ srv.field_name }}: jig.Service[SessionT, {{ srv.srv_class }}, {{ srv.srv_class }}.Request, {{ srv.srv_class }}.Response] = field(default_factory=jig.Service)
 {%- endif %}
 {%- endfor %}
 {%- else %}
@@ -136,10 +138,10 @@ class ActionClients:
 
 
 @dataclass
-class {{ session_class }}(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class {{ session_class }}(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients
@@ -280,7 +282,7 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- for pub in publishers %}
 {%- if pub.for_each_param %}
         for key in params.{{ pub.for_each_param }}:
-            sn.publishers.{{ pub.field_name }}[key] = jig.Publisher[{{ pub.msg_class }}]()
+            sn.publishers.{{ pub.field_name }}[key] = jig.Publisher()
             sn.publishers.{{ pub.field_name }}[key]._initialise(sn, {{ pub.msg_class }}, {{ pub.name_expr }}, {{ pub.qos_code }})
 {%- else %}
         sn.publishers.{{ pub.field_name }}._initialise(sn, {{ pub.msg_class }}, {{ pub.name_expr }}, {{ pub.qos_code }})
@@ -291,7 +293,7 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- for sub in subscribers %}
 {%- if sub.for_each_param %}
         for key in params.{{ sub.for_each_param }}:
-            sn.subscribers.{{ sub.field_name }}[key] = jig.Subscriber[{{ sub.msg_class }}]()
+            sn.subscribers.{{ sub.field_name }}[key] = jig.Subscriber()
             sn.subscribers.{{ sub.field_name }}[key]._initialise(sn, {{ sub.msg_class }}, {{ sub.name_expr }}, {{ sub.qos_code }})
             jig.attach_default_qos_handlers(sn.subscribers.{{ sub.field_name }}[key])
 {%- else %}
@@ -304,7 +306,7 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- for srv in services %}
 {%- if srv.for_each_param %}
         for key in params.{{ srv.for_each_param }}:
-            sn.services.{{ srv.field_name }}[key] = jig.Service[{{ srv.srv_class }}, {{ srv.srv_class }}.Request, {{ srv.srv_class }}.Response]()
+            sn.services.{{ srv.field_name }}[key] = jig.Service()
             sn.services.{{ srv.field_name }}[key]._initialise(sn, {{ srv.srv_class }}, {{ srv.name_expr }}{% if srv.qos_code %}, {{ srv.qos_code }}{% endif %})
 {%- else %}
         sn.services.{{ srv.field_name }}._initialise(sn, {{ srv.srv_class }}, {{ srv.name_expr }}{% if srv.qos_code %}, {{ srv.qos_code }}{% endif %})

@@ -18,24 +18,26 @@ from std_srvs.srv import Trigger
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    cmd_vel: jig.Publisher[Twist] = field(default_factory=jig.Publisher[Twist])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    odom: jig.Subscriber[Odometry] = field(default_factory=jig.Subscriber[Odometry])
+class Publishers(Generic[SessionT]):
+    cmd_vel: jig.Publisher[SessionT, Twist] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
-    get_state: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
+class Subscribers(Generic[SessionT]):
+    odom: jig.Subscriber[SessionT, Odometry] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
+    get_state: jig.Service[SessionT, Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service)
 
 
 @dataclass
@@ -54,10 +56,10 @@ class ActionClients:
 
 
 @dataclass
-class NameParamSubstitutionSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class NameParamSubstitutionSession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

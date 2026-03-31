@@ -9,25 +9,27 @@ from example_interfaces.srv import AddTwoInts
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
+SessionT = TypeVar("SessionT")
+
 
 @dataclass
-class Publishers:
+class Publishers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Subscribers:
+class Subscribers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Services:
-    add_two_ints: jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response])
-    math_multiply: jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response])
+class Services(Generic[SessionT]):
+    add_two_ints: jig.Service[SessionT, AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service)
+    math_multiply: jig.Service[SessionT, AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service)
 
 
 @dataclass
@@ -46,10 +48,10 @@ class ActionClients:
 
 
 @dataclass
-class ServicesOnlySession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ServicesOnlySession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

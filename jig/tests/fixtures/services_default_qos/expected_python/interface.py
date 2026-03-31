@@ -10,25 +10,27 @@ from std_srvs.srv import Trigger
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
+SessionT = TypeVar("SessionT")
+
 
 @dataclass
-class Publishers:
+class Publishers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Subscribers:
+class Subscribers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Services:
-    trigger_service: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
-    compute: jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service[AddTwoInts, AddTwoInts.Request, AddTwoInts.Response])
+class Services(Generic[SessionT]):
+    trigger_service: jig.Service[SessionT, Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service)
+    compute: jig.Service[SessionT, AddTwoInts, AddTwoInts.Request, AddTwoInts.Response] = field(default_factory=jig.Service)
 
 
 @dataclass
@@ -47,10 +49,10 @@ class ActionClients:
 
 
 @dataclass
-class ServicesDefaultQosSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ServicesDefaultQosSession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

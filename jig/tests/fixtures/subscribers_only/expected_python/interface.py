@@ -15,24 +15,26 @@ from sensor_msgs.msg import LaserScan
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
+SessionT = TypeVar("SessionT")
+
 
 @dataclass
-class Publishers:
+class Publishers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Subscribers:
-    sensor_data: jig.Subscriber[LaserScan] = field(default_factory=jig.Subscriber[LaserScan])
-    camera_image: jig.Subscriber[Image] = field(default_factory=jig.Subscriber[Image])
+class Subscribers(Generic[SessionT]):
+    sensor_data: jig.Subscriber[SessionT, LaserScan] = field(default_factory=jig.Subscriber)
+    camera_image: jig.Subscriber[SessionT, Image] = field(default_factory=jig.Subscriber)
 
 
 @dataclass
-class Services:
+class Services(Generic[SessionT]):
     pass
 
 
@@ -52,10 +54,10 @@ class ActionClients:
 
 
 @dataclass
-class SubscribersOnlySession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class SubscribersOnlySession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

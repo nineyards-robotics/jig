@@ -11,7 +11,7 @@ from jig import TransitionCallbackReturn
 
 
 @dataclass
-class MySession(PyEchoNodeSession):
+class MySession(PyEchoNodeSession["MySession"]):
     counter: int = 0
 
 

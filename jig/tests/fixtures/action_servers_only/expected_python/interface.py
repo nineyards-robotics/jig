@@ -9,23 +9,25 @@ from example_interfaces.action import Fibonacci
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
+SessionT = TypeVar("SessionT")
+
 
 @dataclass
-class Publishers:
+class Publishers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Subscribers:
+class Subscribers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Services:
+class Services(Generic[SessionT]):
     pass
 
 
@@ -46,10 +48,10 @@ class ActionClients:
 
 
 @dataclass
-class ActionServersOnlySession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ActionServersOnlySession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

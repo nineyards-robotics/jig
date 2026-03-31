@@ -16,23 +16,25 @@ from std_msgs.msg import String
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    status: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    node_states: dict[str, jig.Subscriber[String]] = field(default_factory=dict)
+class Publishers(Generic[SessionT]):
+    status: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
+class Subscribers(Generic[SessionT]):
+    node_states: dict[str, jig.Subscriber[SessionT, String]] = field(default_factory=dict)
+
+
+@dataclass
+class Services(Generic[SessionT]):
     pass
 
 
@@ -52,10 +54,10 @@ class ActionClients:
 
 
 @dataclass
-class ForEachParamSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ForEachParamSession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients
@@ -129,7 +131,7 @@ class _ForEachParamNode(jig.BaseNode[T]):
 
         # initialise subscribers
         for key in params.managed_nodes:
-            sn.subscribers.node_states[key] = jig.Subscriber[String]()
+            sn.subscribers.node_states[key] = jig.Subscriber()
             sn.subscribers.node_states[key]._initialise(sn, String, f"/{key}/state", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.RELIABLE))
             jig.attach_default_qos_handlers(sn.subscribers.node_states[key])
 

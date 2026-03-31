@@ -18,24 +18,26 @@ from std_srvs.srv import Trigger
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    status: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    command: jig.Subscriber[Bool] = field(default_factory=jig.Subscriber[Bool])
+class Publishers(Generic[SessionT]):
+    status: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
-    reset: jig.Service[Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service[Trigger, Trigger.Request, Trigger.Response])
+class Subscribers(Generic[SessionT]):
+    command: jig.Subscriber[SessionT, Bool] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
+    reset: jig.Service[SessionT, Trigger, Trigger.Request, Trigger.Response] = field(default_factory=jig.Service)
 
 
 @dataclass
@@ -55,10 +57,10 @@ class ActionClients:
 
 
 @dataclass
-class ServiceClientsMixedSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ServiceClientsMixedSession(jig.Session, Generic[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients
