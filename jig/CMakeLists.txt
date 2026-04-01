@@ -21,6 +21,9 @@ list(APPEND ${PROJECT_NAME}_CONFIG_EXTRAS cmake/jig_auto_package.cmake cmake/jig
 
 ament_python_install_package(${PROJECT_NAME})
 
+# Install type stubs for third-party packages missing type information (e.g. C extensions)
+install(DIRECTORY stubs/tf2_py-stubs DESTINATION ${PYTHON_INSTALL_DIR})
+
 if(BUILD_TESTING)
     find_package(ament_cmake_pytest REQUIRED)
     ament_add_pytest_test(test_generate_node_interface tests/test_generate_node_interface.py)
