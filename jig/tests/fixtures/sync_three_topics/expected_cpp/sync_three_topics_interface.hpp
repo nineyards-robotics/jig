@@ -13,9 +13,7 @@
 #include <jig/session.hpp>
 #include <jig/subscriber.hpp>
 #include <jig/default_qos_handlers.hpp>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/approximate_time.h>
+#include <jig/sync_group.hpp>
 #include <test_package/sync_three_topics_parameters.hpp>
 
 namespace test_package::sync_three_topics {
@@ -24,26 +22,7 @@ template <typename SessionType> struct SyncThreeTopicsPublishers {};
 
 template <typename SessionType> struct SyncThreeTopicsSubscribers {
     std::shared_ptr<jig::Subscriber<nav_msgs::msg::Odometry, SessionType>> odom;
-
-    struct SensorFusion {
-        using Policy = message_filters::sync_policies::ApproximateTime<
-            sensor_msgs::msg::LaserScan,
-            sensor_msgs::msg::Image,
-            sensor_msgs::msg::Imu>;
-        message_filters::Subscriber<sensor_msgs::msg::LaserScan, rclcpp_lifecycle::LifecycleNode> lidar;
-        message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode> camera;
-        message_filters::Subscriber<sensor_msgs::msg::Imu, rclcpp_lifecycle::LifecycleNode> imu;
-        std::shared_ptr<message_filters::Synchronizer<Policy>> sync;
-
-        using Callback = std::function<void(
-            std::shared_ptr<SessionType>,
-            sensor_msgs::msg::LaserScan::ConstSharedPtr,
-            sensor_msgs::msg::Image::ConstSharedPtr,
-            sensor_msgs::msg::Imu::ConstSharedPtr)>;
-        Callback callback;
-
-        void set_callback(Callback cb) { callback = std::move(cb); }
-    } sensor_fusion;
+    std::shared_ptr<jig::ApproximateSync<SessionType, sensor_msgs::msg::LaserScan, sensor_msgs::msg::Image, sensor_msgs::msg::Imu>> sensor_fusion;
 };
 
 template <typename SessionType> struct SyncThreeTopicsServices {};
@@ -96,41 +75,14 @@ class SyncThreeTopicsBase : public jig::BaseNode<"sync_three_topics", SessionTyp
         jig::attach_default_qos_handlers(sn->subscribers.odom);
 
         // init sync group: sensor_fusion
-        using SensorFusionSyncGroup = typename SyncThreeTopicsSubscribers<SessionType>::SensorFusion;
-        sn->subscribers.sensor_fusion.lidar.subscribe(&sn->node, "lidar", rclcpp::QoS(10).best_effort().get_rmw_qos_profile());
-        sn->subscribers.sensor_fusion.camera.subscribe(&sn->node, "camera", rclcpp::QoS(5).best_effort().get_rmw_qos_profile());
-        sn->subscribers.sensor_fusion.imu.subscribe(&sn->node, "imu", rclcpp::QoS(10).best_effort().get_rmw_qos_profile());
-        sn->subscribers.sensor_fusion.sync = std::make_shared<
-            message_filters::Synchronizer<typename SensorFusionSyncGroup::Policy>>(
-            typename SensorFusionSyncGroup::Policy(20),
-            sn->subscribers.sensor_fusion.lidar,
-            sn->subscribers.sensor_fusion.camera,
-            sn->subscribers.sensor_fusion.imu);
-        sn->subscribers.sensor_fusion.sync->setMaxIntervalDuration(rclcpp::Duration::from_seconds(0.1));
-        {
-            auto weak_sn = std::weak_ptr<SessionType>(sn);
-            sn->subscribers.sensor_fusion.sync->registerCallback(
-                std::bind(
-                    [weak_sn](
-                        const sensor_msgs::msg::LaserScan::ConstSharedPtr& msg_0,
-                        const sensor_msgs::msg::Image::ConstSharedPtr& msg_1,
-                        const sensor_msgs::msg::Imu::ConstSharedPtr& msg_2)
-                    {
-                        auto sn = weak_sn.lock();
-                        if (!sn) return;
-                        if (sn->node.get_current_state().id() !=
-                            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) return;
-                        if (sn->subscribers.sensor_fusion.callback) {
-                            sn->subscribers.sensor_fusion.callback(sn,
-                                msg_0,
-                                msg_1,
-                                msg_2);
-                        }
-                    },
-                    std::placeholders::_1,
-                    std::placeholders::_2,
-                    std::placeholders::_3));
-        }
+        sn->subscribers.sensor_fusion = jig::create_approximate_sync_group<SessionType,
+            sensor_msgs::msg::LaserScan, sensor_msgs::msg::Image, sensor_msgs::msg::Imu>(
+            sn, 20, 0.1,
+            std::array<jig::SyncTopicConfig, 3>{
+                jig::SyncTopicConfig("lidar", rclcpp::QoS(10).best_effort()),
+                jig::SyncTopicConfig("camera", rclcpp::QoS(5).best_effort()),
+                jig::SyncTopicConfig("imu", rclcpp::QoS(10).best_effort())
+            });
         return sn;
     }
 

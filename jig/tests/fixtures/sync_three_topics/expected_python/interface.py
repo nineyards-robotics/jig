@@ -17,7 +17,6 @@ from sensor_msgs.msg import LaserScan
 
 import jig
 import message_filters
-from lifecycle_msgs.msg import State
 
 from typing import Callable, Generic, TypeVar
 
@@ -34,19 +33,7 @@ class Publishers(Generic[SessionT]):
 @dataclass
 class Subscribers(Generic[SessionT]):
     odom: jig.Subscriber[SessionT, Odometry] = field(default_factory=jig.Subscriber)
-
-    @dataclass
-    class SensorFusion:
-        lidar: message_filters.Subscriber = None
-        camera: message_filters.Subscriber = None
-        imu: message_filters.Subscriber = None
-        sync: message_filters.ApproximateTimeSynchronizer = None
-        _callback: Callable | None = None
-
-        def set_callback(self, callback):
-            self._callback = callback
-
-    sensor_fusion: SensorFusion = field(default_factory=SensorFusion)
+    sensor_fusion: jig.SyncGroup3[SessionT, LaserScan, Image, Imu] = field(default_factory=jig.SyncGroup3)
 
 
 @dataclass
@@ -149,23 +136,13 @@ class _SyncThreeTopicsNode(jig.BaseNode[T]):
         jig.attach_default_qos_handlers(sn.subscribers.odom)
 
         # initialise sync group: sensor_fusion
-        sn.subscribers.sensor_fusion.lidar = message_filters.Subscriber(
-            node, LaserScan, "lidar", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        sn.subscribers.sensor_fusion.camera = message_filters.Subscriber(
-            node, Image, "camera", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=5, reliability=ReliabilityPolicy.BEST_EFFORT))
-        sn.subscribers.sensor_fusion.imu = message_filters.Subscriber(
-            node, Imu, "imu", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        sn.subscribers.sensor_fusion.sync = message_filters.ApproximateTimeSynchronizer(
-            [sn.subscribers.sensor_fusion.lidar, sn.subscribers.sensor_fusion.camera, sn.subscribers.sensor_fusion.imu],
-            queue_size=20, slop=0.1)
-
-        def _sensor_fusion_cb(msg_0, msg_1, msg_2, _sn=sn):
-            if _sn.node.current_state != State.PRIMARY_STATE_ACTIVE:
-                return
-            if _sn.subscribers.sensor_fusion._callback:
-                _sn.subscribers.sensor_fusion._callback(_sn, msg_0, msg_1, msg_2)
-
-        sn.subscribers.sensor_fusion.sync.registerCallback(_sensor_fusion_cb)
+        sn.subscribers.sensor_fusion._initialise(
+            sn, message_filters.ApproximateTimeSynchronizer, 20,
+            [
+                (LaserScan, "lidar", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)),
+                (Image, "camera", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=5, reliability=ReliabilityPolicy.BEST_EFFORT)),
+                (Imu, "imu", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)),
+            ], slop=0.1)
 
         # initialise services
 
@@ -184,12 +161,7 @@ class _SyncThreeTopicsNode(jig.BaseNode[T]):
             sn.node.destroy_timer(timer)
         sn.timers.clear()
         sn.subscribers.odom._destroy(sn.node)
-        if sn.subscribers.sensor_fusion.lidar:
-            sn.subscribers.sensor_fusion.lidar.unregister()
-        if sn.subscribers.sensor_fusion.camera:
-            sn.subscribers.sensor_fusion.camera.unregister()
-        if sn.subscribers.sensor_fusion.imu:
-            sn.subscribers.sensor_fusion.imu.unregister()
+        sn.subscribers.sensor_fusion._destroy(sn.node)
 
 
 def run(

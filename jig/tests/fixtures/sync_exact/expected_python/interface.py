@@ -14,7 +14,6 @@ from sensor_msgs.msg import Image
 
 import jig
 import message_filters
-from lifecycle_msgs.msg import State
 
 from typing import Callable, Generic, TypeVar
 
@@ -30,18 +29,7 @@ class Publishers(Generic[SessionT]):
 
 @dataclass
 class Subscribers(Generic[SessionT]):
-
-    @dataclass
-    class StereoPair:
-        camera_left: message_filters.Subscriber = None
-        camera_right: message_filters.Subscriber = None
-        sync: message_filters.TimeSynchronizer = None
-        _callback: Callable | None = None
-
-        def set_callback(self, callback):
-            self._callback = callback
-
-    stereo_pair: StereoPair = field(default_factory=StereoPair)
+    stereo_pair: jig.SyncGroup2[SessionT, Image, Image] = field(default_factory=jig.SyncGroup2)
 
 
 @dataclass
@@ -142,21 +130,12 @@ class _SyncExactNode(jig.BaseNode[T]):
         # initialise subscribers
 
         # initialise sync group: stereo_pair
-        sn.subscribers.stereo_pair.camera_left = message_filters.Subscriber(
-            node, Image, "camera_left", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=5, reliability=ReliabilityPolicy.RELIABLE))
-        sn.subscribers.stereo_pair.camera_right = message_filters.Subscriber(
-            node, Image, "camera_right", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=5, reliability=ReliabilityPolicy.RELIABLE))
-        sn.subscribers.stereo_pair.sync = message_filters.TimeSynchronizer(
-            [sn.subscribers.stereo_pair.camera_left, sn.subscribers.stereo_pair.camera_right],
-            queue_size=5)
-
-        def _stereo_pair_cb(msg_0, msg_1, _sn=sn):
-            if _sn.node.current_state != State.PRIMARY_STATE_ACTIVE:
-                return
-            if _sn.subscribers.stereo_pair._callback:
-                _sn.subscribers.stereo_pair._callback(_sn, msg_0, msg_1)
-
-        sn.subscribers.stereo_pair.sync.registerCallback(_stereo_pair_cb)
+        sn.subscribers.stereo_pair._initialise(
+            sn, message_filters.TimeSynchronizer, 5,
+            [
+                (Image, "camera_left", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=5, reliability=ReliabilityPolicy.RELIABLE)),
+                (Image, "camera_right", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=5, reliability=ReliabilityPolicy.RELIABLE)),
+            ])
 
         # initialise services
 
@@ -174,10 +153,7 @@ class _SyncExactNode(jig.BaseNode[T]):
         for timer in sn.timers:
             sn.node.destroy_timer(timer)
         sn.timers.clear()
-        if sn.subscribers.stereo_pair.camera_left:
-            sn.subscribers.stereo_pair.camera_left.unregister()
-        if sn.subscribers.stereo_pair.camera_right:
-            sn.subscribers.stereo_pair.camera_right.unregister()
+        sn.subscribers.stereo_pair._destroy(sn.node)
 
 
 def run(

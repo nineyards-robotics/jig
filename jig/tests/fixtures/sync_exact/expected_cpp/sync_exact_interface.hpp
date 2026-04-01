@@ -8,9 +8,7 @@
 #include <sensor_msgs/msg/image.hpp>
 #include <jig/base_node.hpp>
 #include <jig/session.hpp>
-#include <message_filters/subscriber.h>
-#include <message_filters/synchronizer.h>
-#include <message_filters/sync_policies/exact_time.h>
+#include <jig/sync_group.hpp>
 #include <test_package/sync_exact_parameters.hpp>
 
 namespace test_package::sync_exact {
@@ -18,23 +16,7 @@ namespace test_package::sync_exact {
 template <typename SessionType> struct SyncExactPublishers {};
 
 template <typename SessionType> struct SyncExactSubscribers {
-
-    struct StereoPair {
-        using Policy = message_filters::sync_policies::ExactTime<
-            sensor_msgs::msg::Image,
-            sensor_msgs::msg::Image>;
-        message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode> camera_left;
-        message_filters::Subscriber<sensor_msgs::msg::Image, rclcpp_lifecycle::LifecycleNode> camera_right;
-        std::shared_ptr<message_filters::Synchronizer<Policy>> sync;
-
-        using Callback = std::function<void(
-            std::shared_ptr<SessionType>,
-            sensor_msgs::msg::Image::ConstSharedPtr,
-            sensor_msgs::msg::Image::ConstSharedPtr)>;
-        Callback callback;
-
-        void set_callback(Callback cb) { callback = std::move(cb); }
-    } stereo_pair;
+    std::shared_ptr<jig::ExactSync<SessionType, sensor_msgs::msg::Image, sensor_msgs::msg::Image>> stereo_pair;
 };
 
 template <typename SessionType> struct SyncExactServices {};
@@ -84,35 +66,13 @@ class SyncExactBase : public jig::BaseNode<"sync_exact", SessionType, extend_opt
         sn->params = sn->param_listener->get_params();
 
         // init sync group: stereo_pair
-        using StereoPairSyncGroup = typename SyncExactSubscribers<SessionType>::StereoPair;
-        sn->subscribers.stereo_pair.camera_left.subscribe(&sn->node, "camera_left", rclcpp::QoS(5).reliable().get_rmw_qos_profile());
-        sn->subscribers.stereo_pair.camera_right.subscribe(&sn->node, "camera_right", rclcpp::QoS(5).reliable().get_rmw_qos_profile());
-        sn->subscribers.stereo_pair.sync = std::make_shared<
-            message_filters::Synchronizer<typename StereoPairSyncGroup::Policy>>(
-            typename StereoPairSyncGroup::Policy(5),
-            sn->subscribers.stereo_pair.camera_left,
-            sn->subscribers.stereo_pair.camera_right);
-        {
-            auto weak_sn = std::weak_ptr<SessionType>(sn);
-            sn->subscribers.stereo_pair.sync->registerCallback(
-                std::bind(
-                    [weak_sn](
-                        const sensor_msgs::msg::Image::ConstSharedPtr& msg_0,
-                        const sensor_msgs::msg::Image::ConstSharedPtr& msg_1)
-                    {
-                        auto sn = weak_sn.lock();
-                        if (!sn) return;
-                        if (sn->node.get_current_state().id() !=
-                            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) return;
-                        if (sn->subscribers.stereo_pair.callback) {
-                            sn->subscribers.stereo_pair.callback(sn,
-                                msg_0,
-                                msg_1);
-                        }
-                    },
-                    std::placeholders::_1,
-                    std::placeholders::_2));
-        }
+        sn->subscribers.stereo_pair = jig::create_exact_sync_group<SessionType,
+            sensor_msgs::msg::Image, sensor_msgs::msg::Image>(
+            sn, 5,
+            std::array<jig::SyncTopicConfig, 2>{
+                jig::SyncTopicConfig("camera_left", rclcpp::QoS(5).reliable()),
+                jig::SyncTopicConfig("camera_right", rclcpp::QoS(5).reliable())
+            });
         return sn;
     }
 

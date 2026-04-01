@@ -20,7 +20,7 @@ void synced_callback(
 }
 
 CallbackReturn on_configure(std::shared_ptr<Session> sn) {
-    sn->subscribers.synced_points.set_callback(synced_callback);
+    sn->subscribers.synced_points->set_callback(synced_callback);
     return CallbackReturn::SUCCESS;
 }
 

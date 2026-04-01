@@ -14,7 +14,6 @@ from sensor_msgs.msg import NavSatFix
 
 import jig
 import message_filters
-from lifecycle_msgs.msg import State
 
 from typing import Callable, Generic, TypeVar
 
@@ -30,18 +29,7 @@ class Publishers(Generic[SessionT]):
 
 @dataclass
 class Subscribers(Generic[SessionT]):
-
-    @dataclass
-    class DualFix:
-        fix_left: message_filters.Subscriber = None
-        fix_right: message_filters.Subscriber = None
-        sync: message_filters.ApproximateTimeSynchronizer = None
-        _callback: Callable | None = None
-
-        def set_callback(self, callback):
-            self._callback = callback
-
-    dual_fix: DualFix = field(default_factory=DualFix)
+    dual_fix: jig.SyncGroup2[SessionT, NavSatFix, NavSatFix] = field(default_factory=jig.SyncGroup2)
 
 
 @dataclass
@@ -142,21 +130,12 @@ class _SyncApproximateNode(jig.BaseNode[T]):
         # initialise subscribers
 
         # initialise sync group: dual_fix
-        sn.subscribers.dual_fix.fix_left = message_filters.Subscriber(
-            node, NavSatFix, "fix_left", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        sn.subscribers.dual_fix.fix_right = message_filters.Subscriber(
-            node, NavSatFix, "fix_right", qos_profile=QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT))
-        sn.subscribers.dual_fix.sync = message_filters.ApproximateTimeSynchronizer(
-            [sn.subscribers.dual_fix.fix_left, sn.subscribers.dual_fix.fix_right],
-            queue_size=10, slop=0.05)
-
-        def _dual_fix_cb(msg_0, msg_1, _sn=sn):
-            if _sn.node.current_state != State.PRIMARY_STATE_ACTIVE:
-                return
-            if _sn.subscribers.dual_fix._callback:
-                _sn.subscribers.dual_fix._callback(_sn, msg_0, msg_1)
-
-        sn.subscribers.dual_fix.sync.registerCallback(_dual_fix_cb)
+        sn.subscribers.dual_fix._initialise(
+            sn, message_filters.ApproximateTimeSynchronizer, 10,
+            [
+                (NavSatFix, "fix_left", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)),
+                (NavSatFix, "fix_right", QoSProfile(history=HistoryPolicy.KEEP_LAST, depth=10, reliability=ReliabilityPolicy.BEST_EFFORT)),
+            ], slop=0.05)
 
         # initialise services
 
@@ -174,10 +153,7 @@ class _SyncApproximateNode(jig.BaseNode[T]):
         for timer in sn.timers:
             sn.node.destroy_timer(timer)
         sn.timers.clear()
-        if sn.subscribers.dual_fix.fix_left:
-            sn.subscribers.dual_fix.fix_left.unregister()
-        if sn.subscribers.dual_fix.fix_right:
-            sn.subscribers.dual_fix.fix_right.unregister()
+        sn.subscribers.dual_fix._destroy(sn.node)
 
 
 def run(

@@ -849,12 +849,10 @@ def prepare_sync_groups(
 
     for sg in sync_groups_raw:
         policy = sg["policy"]
-        policy_class = "ApproximateTime" if policy == "approximate" else "ExactTime"
 
         topics = []
         for topic_entry in sg["topics"]:
             topic_name = topic_entry["topic"]
-            field_name = name_to_field_name(topic_name)
             name_expr = generate_cpp_name_expression(topic_name)
 
             qos_code, topic_needs_helpers = generate_qos_code(topic_entry["qos"])
@@ -863,8 +861,6 @@ def prepare_sync_groups(
 
             topics.append(
                 {
-                    "topic": topic_name,
-                    "field_name": field_name,
                     "msg_type": ros_type_to_cpp(topic_entry["type"]),
                     "qos_code": qos_code,
                     "name_expr": name_expr,
@@ -874,11 +870,10 @@ def prepare_sync_groups(
         sync_groups.append(
             {
                 "field_name": sg["name"],
-                "struct_name": get_class_name(sg["name"]),
                 "policy": policy,
-                "policy_class": policy_class,
                 "queue_size": sg["queue_size"],
                 "max_interval": sg.get("max_interval"),
+                "num_topics": len(topics),
                 "topics": topics,
             }
         )
@@ -909,7 +904,6 @@ def prepare_python_sync_groups(
         topics = []
         for topic_entry in sg["topics"]:
             topic_name = topic_entry["topic"]
-            field_name = name_to_field_name(topic_name)
             name_expr = generate_python_name_expression(topic_name)
             ros_type = topic_entry["type"]
 
@@ -920,9 +914,6 @@ def prepare_python_sync_groups(
 
             topics.append(
                 {
-                    "topic": topic_name,
-                    "field_name": field_name,
-                    "msg_type": ros_type,
                     "msg_class": ros_type_to_python_class(ros_type),
                     "import_stmt": ros_type_to_python_import(ros_type),
                     "qos_code": qos_code,
@@ -933,11 +924,11 @@ def prepare_python_sync_groups(
         sync_groups.append(
             {
                 "field_name": sg["name"],
-                "struct_name": get_class_name(sg["name"]),
                 "policy": policy,
                 "sync_class": sync_class,
                 "queue_size": sg["queue_size"],
                 "max_interval": sg.get("max_interval"),
+                "num_topics": len(topics),
                 "topics": topics,
             }
         )
