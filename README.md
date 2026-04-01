@@ -694,7 +694,7 @@ Sync groups live in the `subscribers` list alongside regular subscribers. They a
 
 ```cpp
 CallbackReturn on_configure(std::shared_ptr<Session> sn) {
-    sn->subscribers.dual_fix.set_callback(
+    sn->subscribers.dual_fix->set_callback(
         [](auto sn, auto left_msg, auto right_msg) {
             // Both messages are from the same epoch
             // Compute heading, odometry, etc.
