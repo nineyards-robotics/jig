@@ -14,23 +14,25 @@ from std_msgs.msg import String
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    status: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
+class Publishers(Generic[SessionT]):
+    status: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
+
+
+@dataclass
+class Subscribers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Services:
+class Services(Generic[SessionT]):
     pass
 
 
@@ -50,10 +52,10 @@ class ActionClients:
 
 
 @dataclass
-class WithParametersSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class WithParametersSession(jig.Session[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

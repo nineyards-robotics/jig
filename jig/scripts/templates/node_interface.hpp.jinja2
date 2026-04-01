@@ -30,6 +30,16 @@
 #include <string>
 #include <unordered_map>
 {%- endif %}
+{%- if tf_listener %}
+#include <tf2_ros/buffer.h>
+#include <tf2_ros/transform_listener.h>
+{%- endif %}
+{%- if tf_broadcaster %}
+#include <tf2_ros/transform_broadcaster.h>
+{%- endif %}
+{%- if tf_static_broadcaster %}
+#include <tf2_ros/static_transform_broadcaster.h>
+{%- endif %}
 #include <{{ package_name }}/{{ node_name }}_parameters.hpp>
 
 namespace {{ implementation_namespace }} {
@@ -132,6 +142,16 @@ template <typename DerivedSessionType> struct {{ session_class }} : jig::Session
     {{ class_name }}ServiceClients<DerivedSessionType> service_clients;
     {{ class_name }}Actions<DerivedSessionType> actions;
     {{ class_name }}ActionClients<DerivedSessionType> action_clients;
+{%- if tf_listener %}
+    std::shared_ptr<tf2_ros::Buffer> tf_buffer;
+    std::shared_ptr<tf2_ros::TransformListener> tf_listener;
+{%- endif %}
+{%- if tf_broadcaster %}
+    std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster;
+{%- endif %}
+{%- if tf_static_broadcaster %}
+    std::shared_ptr<tf2_ros::StaticTransformBroadcaster> tf_static_broadcaster;
+{%- endif %}
     std::shared_ptr<ParamListener> param_listener;
     Params params;
 };
@@ -161,6 +181,20 @@ class {{ class_name }}Base : public jig::BaseNode<"{{ node_name }}", SessionType
         // init parameters (must be before publishers/subscribers for QoS param refs)
         sn->param_listener = std::make_shared<ParamListener>(sn->node.shared_from_this());
         sn->params = sn->param_listener->get_params();
+{%- if tf_listener or tf_broadcaster or tf_static_broadcaster %}
+
+        // init tf
+{%- endif %}
+{%- if tf_listener %}
+        sn->tf_buffer = std::make_shared<tf2_ros::Buffer>(sn->node.get_clock());
+        sn->tf_listener = std::make_shared<tf2_ros::TransformListener>(*sn->tf_buffer, &sn->node);
+{%- endif %}
+{%- if tf_broadcaster %}
+        sn->tf_broadcaster = std::make_shared<tf2_ros::TransformBroadcaster>(&sn->node);
+{%- endif %}
+{%- if tf_static_broadcaster %}
+        sn->tf_static_broadcaster = std::make_shared<tf2_ros::StaticTransformBroadcaster>(&sn->node);
+{%- endif %}
 {%- if publishers %}
 
         // init publishers

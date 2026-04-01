@@ -7,6 +7,7 @@ from .session import Session
 
 from typing import Any, Callable, Generic, TypeVar, cast
 
+SessionT = TypeVar("SessionT", bound=Session)
 ServiceT = TypeVar("ServiceT")
 RequestT = TypeVar("RequestT")
 ResponseT = TypeVar("ResponseT")
@@ -22,15 +23,15 @@ def get_no_handler_warning_logger(service_name: str) -> Callable[[Session, Any, 
     return inner
 
 
-class Service(Generic[ServiceT, RequestT, ResponseT]):
+class Service(Generic[SessionT, ServiceT, RequestT, ResponseT]):
     _service: RclpyService | None = None
-    _request_handler: Callable[[Session, RequestT, ResponseT], ResponseT]
+    _request_handler: Callable[[SessionT, RequestT, ResponseT], ResponseT]
     _service_type: type[ServiceT]
     _service_name: str
 
     def _initialise(
         self,
-        session: Session,
+        session: SessionT,
         srv_type: type[ServiceT],
         service_name: str,
         qos: QoSProfile = qos_profile_services_default,
@@ -59,7 +60,7 @@ class Service(Generic[ServiceT, RequestT, ResponseT]):
             node.destroy_service(self._service)
             self._service = None
 
-    def set_request_handler(self, handler: Callable[[Session, RequestT, ResponseT], ResponseT]) -> None:
+    def set_request_handler(self, handler: Callable[[SessionT, RequestT, ResponseT], ResponseT]) -> None:
         if self._service is None:
             raise RuntimeError("Can't set request handler. Service has not been initialised! This is an error in jig.")
         self._request_handler = handler

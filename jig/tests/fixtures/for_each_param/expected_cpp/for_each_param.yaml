@@ -1,7 +1,3 @@
-node:
-  name: for_each_param
-  package: test_package
-  plugin: test_package::ForEachParam
 parameters:
   managed_nodes:
     type: string_array
@@ -43,6 +39,10 @@ subscribers:
 service_clients:
 - name: /${for_each_param:managed_nodes}/change_state
   type: lifecycle_msgs/srv/ChangeState
+node:
+  name: for_each_param
+  package: test_package
+  plugin: test_package::ForEachParam
 services:
 - name: ~/change_state
   type: lifecycle_msgs/srv/ChangeState

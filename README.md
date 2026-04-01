@@ -136,7 +136,7 @@ from std_msgs.msg import String
 
 # Extend the generated session with custom state
 @dataclass
-class MySession(MyNodeSession):
+class MySession(MyNodeSession["MySession"]):
     my_counter: int = 0
 
 def msg_callback(sn: MySession, msg):
@@ -326,7 +326,7 @@ from jig import TransitionCallbackReturn
 from my_package.my_node import MyNodeSession, run
 
 @dataclass
-class MySession(MyNodeSession):
+class MySession(MyNodeSession["MySession"]):
     is_running: bool = False
 
 def on_configure(sn: MySession) -> TransitionCallbackReturn:
@@ -674,6 +674,86 @@ action_clients:
 ```
 
 All entity types (services, service clients, actions, action clients) support `${param:name}` substitution in their names — see [Dynamic Topic/Service/Action Names](#dynamic-topicserviceaction-names).
+
+### TF2 Transforms
+
+Jig provides built-in support for TF2 transforms via the `tf` section. Enable any combination of listener, broadcaster, and static broadcaster — Jig creates and wires them automatically:
+
+```yaml
+tf:
+  listener: true            # tf2_ros Buffer + TransformListener
+  broadcaster: true         # tf2_ros TransformBroadcaster
+  static_broadcaster: true  # tf2_ros StaticTransformBroadcaster
+```
+
+All three flags default to `false`. Enable only what you need.
+
+The generated session exposes:
+
+| Flag | Session fields |
+|------|---------------|
+| `listener: true` | `tf_buffer`, `tf_listener` |
+| `broadcaster: true` | `tf_broadcaster` |
+| `static_broadcaster: true` | `tf_static_broadcaster` |
+
+#### C++ Example
+
+```cpp
+#include "tf_node.hpp"
+#include <geometry_msgs/msg/transform_stamped.hpp>
+
+namespace my_package::tf_node {
+
+CallbackReturn on_configure(std::shared_ptr<Session> sn) {
+    // Broadcast a static transform
+    geometry_msgs::msg::TransformStamped static_tf;
+    static_tf.header.stamp = sn->node.get_clock()->now();
+    static_tf.header.frame_id = "world";
+    static_tf.child_frame_id = "base_link";
+    static_tf.transform.translation.x = 1.0;
+    static_tf.transform.rotation.w = 1.0;
+    sn->tf_static_broadcaster->sendTransform(static_tf);
+
+    // Look up a transform
+    auto t = sn->tf_buffer->lookupTransform("world", "sensor", tf2::TimePointZero);
+
+    return CallbackReturn::SUCCESS;
+}
+
+} // namespace my_package::tf_node
+```
+
+#### Python Example
+
+```python
+from dataclasses import dataclass
+from geometry_msgs.msg import TransformStamped
+from rclpy.time import Time
+from jig import TransitionCallbackReturn
+from my_package.tf_node.interface import TfNodeSession, run
+
+@dataclass
+class MySession(TfNodeSession["MySession"]):
+    pass
+
+def on_configure(sn: MySession) -> TransitionCallbackReturn:
+    # Broadcast a static transform
+    static_tf = TransformStamped()
+    static_tf.header.stamp = sn.node.get_clock().now().to_msg()
+    static_tf.header.frame_id = "world"
+    static_tf.child_frame_id = "base_link"
+    static_tf.transform.translation.x = 1.0
+    static_tf.transform.rotation.w = 1.0
+    sn.tf_static_broadcaster.sendTransform(static_tf)
+
+    # Look up a transform
+    t = sn.tf_buffer.lookup_transform("world", "sensor", Time())
+
+    return TransitionCallbackReturn.SUCCESS
+
+if __name__ == "__main__":
+    run(MySession, on_configure)
+```
 
 ### Common Optional Fields
 
@@ -1402,13 +1482,14 @@ cd jig/tests
 
 ## Examples
 
-The `jig_example` package demonstrates a range of Jig features across five nodes in both C++ and Python:
+The `jig_example` package demonstrates a range of Jig features across six nodes in both C++ and Python:
 
 - **`echo_node`** (C++) — Publishers, subscribers, services, service clients, timers, and parameterized QoS. A comprehensive example showing most Jig features in one node.
 - **`py_echo_node`** (Python) — Python equivalent of the echo node with timer creation via `jig.create_timer()` and service request handlers.
 - **`action_node`** (C++) — Action servers with goal validation and feedback, including single-goal and goal-replacement modes. Also demonstrates action clients and periodic timers.
 - **`lifecycle_node`** (Python) — Full lifecycle callbacks (`on_configure`, `on_activate`, `on_deactivate`, `on_cleanup`) with advanced QoS settings including deadline monitoring, liveliness detection, and transient-local durability.
 - **`for_each_node`** (Python) — Dynamic subscriber creation using `${for_each_param:...}` to aggregate status from a configurable list of target nodes.
+- **`tf_node`** (Python) — TF2 transform support with listener, broadcaster, and static broadcaster. Demonstrates publishing static and dynamic transforms, looking up chained transforms via the buffer, and using `~` in service names.
 
 Additional highlights:
 - **Minimal CMakeLists.txt**: Just 3 lines using `jig_auto_package()`
@@ -1433,9 +1514,12 @@ jig_example/
 │   ├── lifecycle_node/       # Python lifecycle + advanced QoS example
 │   │   ├── interface.yaml
 │   │   └── lifecycle_node.py
-│   └── py_echo_node/         # Python pub/sub/service/timer example
+│   ├── py_echo_node/         # Python pub/sub/service/timer example
+│   │   ├── interface.yaml
+│   │   └── py_echo_node.py
+│   └── tf_node/              # Python TF2 transforms example
 │       ├── interface.yaml
-│       └── py_echo_node.py
+│       └── tf_node.py
 ├── launch/
 │   └── test.launch.yaml
 ├── test/                     # Integration tests
@@ -1455,6 +1539,7 @@ ros2 run jig_example py_echo_node
 ros2 run jig_example action_node
 ros2 run jig_example lifecycle_node
 ros2 run jig_example for_each_node
+ros2 run jig_example tf_node
 
 # Load C++ nodes as components
 ros2 component standalone jig_example jig_example::EchoNode

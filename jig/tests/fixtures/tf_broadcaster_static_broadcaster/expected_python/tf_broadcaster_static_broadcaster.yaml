@@ -1,0 +1,47 @@
+node:
+  name: tf_broadcaster_static_broadcaster
+  package: test_package
+parameters:
+  autostart:
+    type: bool
+    default_value: true
+    description: Automatically configure and activate the node on startup
+    read_only: true
+publishers:
+- topic: ~/transition_event
+  type: lifecycle_msgs/msg/TransitionEvent
+- topic: ~/state
+  type: lifecycle_msgs/msg/State
+- topic: /parameter_events
+  type: rcl_interfaces/msg/ParameterEvent
+- topic: /rosout
+  type: rcl_interfaces/msg/Log
+- topic: /tf
+  type: tf2_msgs/msg/TFMessage
+- topic: /tf_static
+  type: tf2_msgs/msg/TFMessage
+services:
+- name: ~/change_state
+  type: lifecycle_msgs/srv/ChangeState
+- name: ~/get_state
+  type: lifecycle_msgs/srv/GetState
+- name: ~/get_available_states
+  type: lifecycle_msgs/srv/GetAvailableStates
+- name: ~/get_available_transitions
+  type: lifecycle_msgs/srv/GetAvailableTransitions
+- name: ~/get_transition_graph
+  type: lifecycle_msgs/srv/GetTransitionGraph
+- name: ~/describe_parameters
+  type: rcl_interfaces/srv/DescribeParameters
+- name: ~/get_parameters
+  type: rcl_interfaces/srv/GetParameters
+- name: ~/get_parameter_types
+  type: rcl_interfaces/srv/GetParameterTypes
+- name: ~/list_parameters
+  type: rcl_interfaces/srv/ListParameters
+- name: ~/set_parameters
+  type: rcl_interfaces/srv/SetParameters
+- name: ~/set_parameters_atomically
+  type: rcl_interfaces/srv/SetParametersAtomically
+- name: ~/get_type_description
+  type: type_description_interfaces/srv/GetTypeDescription

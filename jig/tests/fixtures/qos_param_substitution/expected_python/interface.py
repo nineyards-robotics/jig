@@ -17,23 +17,25 @@ from std_msgs.msg import String
 import jig
 from jig.qos_helpers import _to_reliability, _to_durability, _to_liveliness
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    processed_data: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    sensor_data: jig.Subscriber[LaserScan] = field(default_factory=jig.Subscriber[LaserScan])
+class Publishers(Generic[SessionT]):
+    processed_data: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
+class Subscribers(Generic[SessionT]):
+    sensor_data: jig.Subscriber[SessionT, LaserScan] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
     pass
 
 
@@ -53,10 +55,10 @@ class ActionClients:
 
 
 @dataclass
-class QosParamSubstitutionSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class QosParamSubstitutionSession(jig.Session[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

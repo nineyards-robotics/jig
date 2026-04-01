@@ -1,3 +1,0 @@
-node:
-    name: ${THIS_NODE}
-    package: ${THIS_PACKAGE}

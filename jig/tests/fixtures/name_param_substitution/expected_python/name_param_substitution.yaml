@@ -1,6 +1,3 @@
-node:
-  name: name_param_substitution
-  package: test_package
 parameters:
   robot_id:
     type: string
@@ -67,3 +64,6 @@ services:
 service_clients:
 - name: /${param:namespace}/service
   type: std_srvs/srv/SetBool
+node:
+  name: name_param_substitution
+  package: test_package

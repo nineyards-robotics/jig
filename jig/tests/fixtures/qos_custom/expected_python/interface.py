@@ -16,25 +16,27 @@ from std_msgs.msg import String
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    reliable_topic: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
-    best_effort_topic: jig.Publisher[String] = field(default_factory=jig.Publisher[String])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    keep_all_topic: jig.Subscriber[String] = field(default_factory=jig.Subscriber[String])
-    deadline_topic: jig.Subscriber[String] = field(default_factory=jig.Subscriber[String])
+class Publishers(Generic[SessionT]):
+    reliable_topic: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
+    best_effort_topic: jig.Publisher[SessionT, String] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
+class Subscribers(Generic[SessionT]):
+    keep_all_topic: jig.Subscriber[SessionT, String] = field(default_factory=jig.Subscriber)
+    deadline_topic: jig.Subscriber[SessionT, String] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
     pass
 
 
@@ -54,10 +56,10 @@ class ActionClients:
 
 
 @dataclass
-class QosCustomSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class QosCustomSession(jig.Session[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

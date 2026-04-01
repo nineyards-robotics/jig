@@ -1,7 +1,3 @@
-node:
-  name: ${THIS_NODE}
-  package: ${THIS_PACKAGE}
-
 services:
   - name: /trigger_service
     type: std_srvs/srv/Trigger

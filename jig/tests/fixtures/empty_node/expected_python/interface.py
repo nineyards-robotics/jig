@@ -8,23 +8,25 @@ import rclpy
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
+SessionT = TypeVar("SessionT")
+
 
 @dataclass
-class Publishers:
+class Publishers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Subscribers:
+class Subscribers(Generic[SessionT]):
     pass
 
 
 @dataclass
-class Services:
+class Services(Generic[SessionT]):
     pass
 
 
@@ -44,10 +46,10 @@ class ActionClients:
 
 
 @dataclass
-class EmptyNodeSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class EmptyNodeSession(jig.Session[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

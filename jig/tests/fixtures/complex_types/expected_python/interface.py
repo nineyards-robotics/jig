@@ -17,25 +17,27 @@ from sensor_msgs.msg import PointCloud2
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    pose: jig.Publisher[PoseStamped] = field(default_factory=jig.Publisher[PoseStamped])
-    path: jig.Publisher[Path] = field(default_factory=jig.Publisher[Path])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    joint_states: jig.Subscriber[JointState] = field(default_factory=jig.Subscriber[JointState])
-    point_cloud: jig.Subscriber[PointCloud2] = field(default_factory=jig.Subscriber[PointCloud2])
+class Publishers(Generic[SessionT]):
+    pose: jig.Publisher[SessionT, PoseStamped] = field(default_factory=jig.Publisher)
+    path: jig.Publisher[SessionT, Path] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
+class Subscribers(Generic[SessionT]):
+    joint_states: jig.Subscriber[SessionT, JointState] = field(default_factory=jig.Subscriber)
+    point_cloud: jig.Subscriber[SessionT, PointCloud2] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
     pass
 
 
@@ -55,10 +57,10 @@ class ActionClients:
 
 
 @dataclass
-class ComplexTypesSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class ComplexTypesSession(jig.Session[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

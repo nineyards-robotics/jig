@@ -1,6 +1,3 @@
-node:
-  name: manually_created
-  package: test_package
 publishers:
 - topic: auto_topic
   type: std_msgs/msg/String
@@ -31,6 +28,9 @@ subscribers:
   qos:
     history: 10
     reliability: BEST_EFFORT
+node:
+  name: manually_created
+  package: test_package
 parameters:
   autostart:
     type: bool

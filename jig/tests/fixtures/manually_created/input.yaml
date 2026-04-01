@@ -1,7 +1,3 @@
-node:
-    name: ${THIS_NODE}
-    package: ${THIS_PACKAGE}
-
 publishers:
     - topic: auto_topic
       type: std_msgs/msg/String

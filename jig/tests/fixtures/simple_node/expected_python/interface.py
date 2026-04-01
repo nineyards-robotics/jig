@@ -15,23 +15,25 @@ from nav_msgs.msg import Odometry
 
 import jig
 
-from typing import Callable, TypeVar
+from typing import Callable, Generic, TypeVar
 
 from .parameters import Params, ParamListener
 
-
-@dataclass
-class Publishers:
-    cmd_vel: jig.Publisher[Twist] = field(default_factory=jig.Publisher[Twist])
+SessionT = TypeVar("SessionT")
 
 
 @dataclass
-class Subscribers:
-    odom: jig.Subscriber[Odometry] = field(default_factory=jig.Subscriber[Odometry])
+class Publishers(Generic[SessionT]):
+    cmd_vel: jig.Publisher[SessionT, Twist] = field(default_factory=jig.Publisher)
 
 
 @dataclass
-class Services:
+class Subscribers(Generic[SessionT]):
+    odom: jig.Subscriber[SessionT, Odometry] = field(default_factory=jig.Subscriber)
+
+
+@dataclass
+class Services(Generic[SessionT]):
     pass
 
 
@@ -51,10 +53,10 @@ class ActionClients:
 
 
 @dataclass
-class SimpleNodeSession(jig.Session):
-    publishers: Publishers
-    subscribers: Subscribers
-    services: Services
+class SimpleNodeSession(jig.Session[SessionT]):
+    publishers: Publishers[SessionT]
+    subscribers: Subscribers[SessionT]
+    services: Services[SessionT]
     service_clients: ServiceClients
     actions: Actions
     action_clients: ActionClients

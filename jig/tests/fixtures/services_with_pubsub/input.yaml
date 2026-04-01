@@ -1,7 +1,3 @@
-node:
-  name: ${THIS_NODE}
-  package: ${THIS_PACKAGE}
-
 publishers:
   - topic: /status
     type: std_msgs/msg/String
@@ -21,3 +17,5 @@ services:
     type: std_srvs/srv/Trigger
   - name: compute
     type: example_interfaces/srv/AddTwoInts
+  - name: ~/private_status
+    type: std_srvs/srv/Trigger

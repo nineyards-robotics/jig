@@ -1,7 +1,3 @@
-node:
-    name: ${THIS_NODE}
-    package: ${THIS_PACKAGE}
-
 subscribers:
     - topic: sensor_data
       type: sensor_msgs/msg/LaserScan
