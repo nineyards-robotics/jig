@@ -1,0 +1,23 @@
+publishers:
+    - topic: output
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
+
+subscribers:
+    - name: synced_points
+      policy: approximate
+      queue_size: 10
+      max_interval: 0.1
+      topics:
+        - topic: point_a
+          type: geometry_msgs/msg/PointStamped
+          qos:
+            history: 10
+            reliability: RELIABLE
+        - topic: point_b
+          type: geometry_msgs/msg/PointStamped
+          qos:
+            history: 10
+            reliability: RELIABLE

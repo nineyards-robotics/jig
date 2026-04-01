@@ -1,0 +1,15 @@
+subscribers:
+    - name: stereo_pair
+      policy: exact
+      queue_size: 5
+      topics:
+        - topic: camera_left
+          type: sensor_msgs/msg/Image
+          qos:
+            history: 5
+            reliability: RELIABLE
+        - topic: camera_right
+          type: sensor_msgs/msg/Image
+          qos:
+            history: 5
+            reliability: RELIABLE

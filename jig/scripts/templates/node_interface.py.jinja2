@@ -27,6 +27,10 @@ import jig
 {%- if needs_qos_helpers %}
 from jig.qos_helpers import _to_reliability, _to_durability, _to_liveliness
 {%- endif %}
+{%- if sync_groups %}
+import message_filters
+from lifecycle_msgs.msg import State
+{%- endif %}
 {%- if tf_listener %}
 from tf2_ros import Buffer as TF2Buffer
 from tf2_ros import TransformListener as TF2TransformListener
@@ -62,13 +66,28 @@ class Publishers(Generic[SessionT]):
 
 @dataclass
 class Subscribers(Generic[SessionT]):
-{%- if subscribers %}
+{%- if subscribers or sync_groups %}
 {%- for sub in subscribers %}
 {%- if sub.for_each_param %}
     {{ sub.field_name }}: dict[str, jig.Subscriber[SessionT, {{ sub.msg_class }}]] = field(default_factory=dict)
 {%- else %}
     {{ sub.field_name }}: jig.Subscriber[SessionT, {{ sub.msg_class }}] = field(default_factory=jig.Subscriber)
 {%- endif %}
+{%- endfor %}
+{%- for sg in sync_groups %}
+
+    @dataclass
+    class {{ sg.struct_name }}:
+{%- for topic in sg.topics %}
+        {{ topic.field_name }}: message_filters.Subscriber = None
+{%- endfor %}
+        sync: {{ sg.sync_class }} = None
+        _callback: Callable | None = None
+
+        def set_callback(self, callback):
+            self._callback = callback
+
+    {{ sg.field_name }}: {{ sg.struct_name }} = field(default_factory={{ sg.struct_name }})
 {%- endfor %}
 {%- else %}
     pass
@@ -295,6 +314,25 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
         jig.attach_default_qos_handlers(sn.subscribers.{{ sub.field_name }})
 {%- endif %}
 {%- endfor %}
+{%- for sg in sync_groups %}
+
+        # initialise sync group: {{ sg.field_name }}
+{%- for topic in sg.topics %}
+        sn.subscribers.{{ sg.field_name }}.{{ topic.field_name }} = message_filters.Subscriber(
+            node, {{ topic.msg_class }}, {{ topic.name_expr }}, qos_profile={{ topic.qos_code }})
+{%- endfor %}
+        sn.subscribers.{{ sg.field_name }}.sync = {{ sg.sync_class }}(
+            [{% for topic in sg.topics %}sn.subscribers.{{ sg.field_name }}.{{ topic.field_name }}{{ ', ' if not loop.last else '' }}{% endfor %}],
+            queue_size={{ sg.queue_size }}{{ ', slop=' + sg.max_interval|string if sg.max_interval is not none else '' }})
+
+        def _{{ sg.field_name }}_cb({% for topic in sg.topics %}msg_{{ loop.index0 }}{{ ', ' if not loop.last else '' }}{% endfor %}, _sn=sn):
+            if _sn.node.current_state != State.PRIMARY_STATE_ACTIVE:
+                return
+            if _sn.subscribers.{{ sg.field_name }}._callback:
+                _sn.subscribers.{{ sg.field_name }}._callback(_sn, {% for topic in sg.topics %}msg_{{ loop.index0 }}{{ ', ' if not loop.last else '' }}{% endfor %})
+
+        sn.subscribers.{{ sg.field_name }}.sync.registerCallback(_{{ sg.field_name }}_cb)
+{%- endfor %}
 
         # initialise services
 {%- for srv in services %}
@@ -365,6 +403,12 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- else %}
         sn.subscribers.{{ sub.field_name }}._destroy(sn.node)
 {%- endif %}
+{%- endfor %}
+{%- for sg in sync_groups %}
+{%- for topic in sg.topics %}
+        if sn.subscribers.{{ sg.field_name }}.{{ topic.field_name }}:
+            sn.subscribers.{{ sg.field_name }}.{{ topic.field_name }}.unregister()
+{%- endfor %}
 {%- endfor %}
 {%- for srv in services %}
 {%- if srv.for_each_param %}

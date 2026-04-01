@@ -17,6 +17,16 @@
 #include <jig/subscriber.hpp>
 #include <jig/default_qos_handlers.hpp>
 {%- endif %}
+{%- if sync_groups %}
+#include <message_filters/subscriber.h>
+#include <message_filters/synchronizer.h>
+{%- if sync_groups | selectattr('policy', 'equalto', 'approximate') | list %}
+#include <message_filters/sync_policies/approximate_time.h>
+{%- endif %}
+{%- if sync_groups | selectattr('policy', 'equalto', 'exact') | list %}
+#include <message_filters/sync_policies/exact_time.h>
+{%- endif %}
+{%- endif %}
 {%- if services %}
 #include <jig/service.hpp>
 {%- endif %}
@@ -58,7 +68,7 @@ template <typename SessionType> struct {{ class_name }}Publishers {
 
 template <typename SessionType> struct {{ class_name }}Publishers {};
 {%- endif %}
-{%- if subscribers %}
+{%- if subscribers or sync_groups %}
 
 template <typename SessionType> struct {{ class_name }}Subscribers {
 {%- for sub in subscribers %}
@@ -67,6 +77,26 @@ template <typename SessionType> struct {{ class_name }}Subscribers {
 {%- else %}
     std::shared_ptr<jig::Subscriber<{{ sub.msg_type }}, SessionType>> {{ sub.field_name }};
 {%- endif %}
+{%- endfor %}
+{%- for sg in sync_groups %}
+
+    struct {{ sg.struct_name }} {
+        using Policy = message_filters::sync_policies::{{ sg.policy_class }}<
+            {{ sg.topics | map(attribute='msg_type') | join(',\n            ') }}>;
+{%- for topic in sg.topics %}
+        message_filters::Subscriber<{{ topic.msg_type }}, rclcpp_lifecycle::LifecycleNode> {{ topic.field_name }};
+{%- endfor %}
+        std::shared_ptr<message_filters::Synchronizer<Policy>> sync;
+
+        using Callback = std::function<void(
+            std::shared_ptr<SessionType>{{ ',' }}
+{%- for topic in sg.topics %}
+            {{ topic.msg_type }}::ConstSharedPtr{{ ',' if not loop.last else '' }}
+{%- endfor %})>;
+        Callback callback;
+
+        void set_callback(Callback cb) { callback = std::move(cb); }
+    } {{ sg.field_name }};
 {%- endfor %}
 };
 {%- else %}
@@ -224,6 +254,47 @@ class {{ class_name }}Base : public jig::BaseNode<"{{ node_name }}", SessionType
 {%- endfor %}
 
 {%- endif %}
+{%- for sg in sync_groups %}
+
+        // init sync group: {{ sg.field_name }}
+        using {{ sg.struct_name }}SyncGroup = typename {{ class_name }}Subscribers<SessionType>::{{ sg.struct_name }};
+{%- for topic in sg.topics %}
+        sn->subscribers.{{ sg.field_name }}.{{ topic.field_name }}.subscribe(&sn->node, {{ topic.name_expr }}, {{ topic.qos_code }}.get_rmw_qos_profile());
+{%- endfor %}
+        sn->subscribers.{{ sg.field_name }}.sync = std::make_shared<
+            message_filters::Synchronizer<typename {{ sg.struct_name }}SyncGroup::Policy>>(
+            typename {{ sg.struct_name }}SyncGroup::Policy({{ sg.queue_size }}),
+{%- for topic in sg.topics %}
+            sn->subscribers.{{ sg.field_name }}.{{ topic.field_name }}{{ ',' if not loop.last else ');' }}
+{%- endfor %}
+{%- if sg.max_interval is not none %}
+        sn->subscribers.{{ sg.field_name }}.sync->setMaxIntervalDuration(rclcpp::Duration::from_seconds({{ sg.max_interval }}));
+{%- endif %}
+        {
+            auto weak_sn = std::weak_ptr<SessionType>(sn);
+            sn->subscribers.{{ sg.field_name }}.sync->registerCallback(
+                std::bind(
+                    [weak_sn](
+{%- for topic in sg.topics %}
+                        const {{ topic.msg_type }}::ConstSharedPtr& msg_{{ loop.index0 }}{{ ',' if not loop.last else ')' }}
+{%- endfor %}
+                    {
+                        auto sn = weak_sn.lock();
+                        if (!sn) return;
+                        if (sn->node.get_current_state().id() !=
+                            lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) return;
+                        if (sn->subscribers.{{ sg.field_name }}.callback) {
+                            sn->subscribers.{{ sg.field_name }}.callback(sn{{ ', ' }}
+{%- for topic in sg.topics %}
+                                msg_{{ loop.index0 }}{{ ',' if not loop.last else ');' }}
+{%- endfor %}
+                        }
+                    }{{ ',' }}
+{%- for topic in sg.topics %}
+                    std::placeholders::_{{ loop.index }}{{ ',' if not loop.last else '' }}
+{%- endfor %}));
+        }
+{%- endfor %}
 {%- if services %}
         // init services
 {%- for srv in services %}

@@ -19,9 +19,11 @@ properties:
       $ref: "#/$defs/publisher"
   subscribers:
     type: array
-    description: List of topic subscribers
+    description: List of topic subscribers and sync groups
     items:
-      $ref: "#/$defs/subscriber"
+      oneOf:
+        - $ref: "#/$defs/subscriber"
+        - $ref: "#/$defs/syncGroup"
   services:
     type: array
     description: List of service servers
@@ -212,6 +214,58 @@ $defs:
         type: boolean
         description: If true, skip code generation for this subscriber (for documentation only)
         default: false
+
+  syncGroup:
+    type: object
+    description: "Synchronise multiple topics by timestamp using message_filters"
+    required:
+      - name
+      - policy
+      - queue_size
+      - topics
+    additionalProperties: false
+    properties:
+      name:
+        type: string
+        description: "Field name for this sync group in generated code"
+        pattern: '^[a-zA-Z_][a-zA-Z0-9_]*$'
+      policy:
+        enum: [approximate, exact]
+        description: "Synchronisation policy"
+      queue_size:
+        type: integer
+        minimum: 1
+        description: "Size of the message queue per topic"
+      max_interval:
+        type: number
+        exclusiveMinimum: 0
+        description: "Maximum time difference (seconds) between messages. Only valid with approximate policy."
+      topics:
+        type: array
+        description: "Topics to synchronise"
+        items:
+          $ref: "#/$defs/syncGroupTopic"
+        minItems: 2
+        maxItems: 9
+
+  syncGroupTopic:
+    type: object
+    description: "A topic within a sync group"
+    required:
+      - topic
+      - type
+      - qos
+    additionalProperties: false
+    properties:
+      topic:
+        $ref: "#/$defs/topicNameWithParams"
+        description: "Topic name (may contain ${param:name} references)"
+      type:
+        $ref: "#/$defs/rosMessageType"
+        description: "ROS message type"
+      qos:
+        $ref: "#/$defs/qos"
+        description: "QoS configuration"
 
   service:
     type: object

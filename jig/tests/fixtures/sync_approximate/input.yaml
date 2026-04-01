@@ -1,0 +1,16 @@
+subscribers:
+    - name: dual_fix
+      policy: approximate
+      queue_size: 10
+      max_interval: 0.05
+      topics:
+        - topic: fix_left
+          type: sensor_msgs/msg/NavSatFix
+          qos:
+            history: 10
+            reliability: BEST_EFFORT
+        - topic: fix_right
+          type: sensor_msgs/msg/NavSatFix
+          qos:
+            history: 10
+            reliability: BEST_EFFORT
