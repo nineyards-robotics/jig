@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 name = "jig-cli"
 version = "0.0.0"
 description = "CLI tools for jig - declarative ROS 2 node scaffolding"
-license = "Apache-2.0"
+license = {text = "Apache-2.0"}
 dynamic = ["requires-python"]
 dependencies = ["pyyaml"]
 maintainers = [
