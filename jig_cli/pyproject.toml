@@ -15,7 +15,7 @@ maintainers = [
 
 # colcon test uses this to select pytest over setuppy_test
 [project.optional-dependencies]
-test = ["pytest"]
+test = ["pytest", "referencing"]
 
 [project.scripts]
 jig = "jig_cli.cli:main"
