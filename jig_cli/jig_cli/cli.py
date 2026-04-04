@@ -20,12 +20,14 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="jig", description="CLI tools for jig")
     subparsers = parser.add_subparsers(dest="command", required=True)
 
-    # jig interface <package> <executable>
+    # jig interface --package <pkg> (--executable <name> | --plugin <class>)
     interface_parser = subparsers.add_parser(
         "interface", help="Get interface for a specific node"
     )
-    interface_parser.add_argument("package", help="Package name")
-    interface_parser.add_argument("executable", help="Executable/node name")
+    interface_parser.add_argument("--package", required=True, help="Package name")
+    lookup_group = interface_parser.add_mutually_exclusive_group(required=True)
+    lookup_group.add_argument("--executable", help="Executable/node name")
+    lookup_group.add_argument("--plugin", help="Component plugin class")
     interface_parser.add_argument(
         "--format",
         choices=["json", "yaml"],

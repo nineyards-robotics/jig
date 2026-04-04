@@ -38,9 +38,18 @@ def _build_test_ws() -> Path:
     needs_build = not install_dir.exists() or install_dir.stat().st_mtime < src_mtime
 
     if needs_build:
+        env = os.environ.copy()
+        # Ensure runtime library dirs are also visible to the build-time
+        # linker so that -l flags (e.g. -llttng-ust) resolve correctly.
+        ld_lib = env.get("LD_LIBRARY_PATH", "")
+        if ld_lib:
+            existing = env.get("LIBRARY_PATH", "")
+            env["LIBRARY_PATH"] = ld_lib + (":" + existing if existing else "")
+
         subprocess.check_call(
-            ["colcon", "build"],
+            ["colcon", "build", "--base-paths", "src"],
             cwd=str(TEST_WS),
+            env=env,
         )
 
     return install_dir

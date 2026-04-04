@@ -13,7 +13,7 @@ def test_returns_all_interfaces(run_jig):
     assert code == 0
     result = json.loads(stdout)
     assert isinstance(result, list)
-    assert len(result) == 3
+    assert len(result) == 6
 
 
 def test_format_yaml(run_jig):
@@ -22,7 +22,7 @@ def test_format_yaml(run_jig):
     assert code == 0
     result = yaml.safe_load(stdout)
     assert isinstance(result, list)
-    assert len(result) == 3
+    assert len(result) == 6
 
 
 def test_empty_when_no_ament_prefix_path(monkeypatch, capsys):

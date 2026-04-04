@@ -15,9 +15,37 @@ def test_no_subcommand_exits_with_error(capsys):
 
 
 def test_interface_missing_args_exits_with_error(capsys):
-    """jig interface with no positional args exits with error."""
+    """jig interface with no args exits with error."""
     try:
         main(["interface"])
+        assert False, "expected SystemExit"
+    except SystemExit as e:
+        assert e.code != 0
+
+
+def test_interface_requires_executable_or_plugin(capsys):
+    """jig interface --package alone exits with error."""
+    try:
+        main(["interface", "--package", "pkg_alpha"])
+        assert False, "expected SystemExit"
+    except SystemExit as e:
+        assert e.code != 0
+
+
+def test_interface_executable_and_plugin_mutually_exclusive(capsys):
+    """jig interface with both --executable and --plugin exits with error."""
+    try:
+        main(
+            [
+                "interface",
+                "--package",
+                "pkg_alpha",
+                "--executable",
+                "sensor_node",
+                "--plugin",
+                "pkg_alpha::SensorNode",
+            ]
+        )
         assert False, "expected SystemExit"
     except SystemExit as e:
         assert e.code != 0
