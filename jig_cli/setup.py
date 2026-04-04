@@ -11,7 +11,6 @@ setup(
         ("share/" + package_name, ["package.xml"]),
     ],
     python_requires=">=3.10",
-    install_requires=["pyyaml"],
     zip_safe=True,
     entry_points={
         "console_scripts": [

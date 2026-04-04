@@ -7,7 +7,7 @@ name = "jig-cli"
 version = "0.0.0"
 description = "CLI tools for jig - declarative ROS 2 node scaffolding"
 license = "Apache-2.0"
-requires-python = ">=3.10"
+dynamic = ["requires-python"]
 dependencies = ["pyyaml"]
 maintainers = [
     {name = "Alistair English", email = "hello@alistairenglish.com"},
