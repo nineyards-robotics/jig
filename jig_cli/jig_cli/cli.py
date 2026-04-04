@@ -103,9 +103,7 @@ def main(argv: list[str] | None = None) -> None:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     # jig interface --package <pkg> (--executable <name> | --plugin <class>)
-    interface_parser = subparsers.add_parser(
-        "interface", help="Get interface for a specific node"
-    )
+    interface_parser = subparsers.add_parser("interface", help="Get interface for a specific node")
     interface_parser.add_argument("--package", required=True, help="Package name")
     lookup_group = interface_parser.add_mutually_exclusive_group(required=True)
     lookup_group.add_argument("--executable", help="Executable/node name")
@@ -119,9 +117,7 @@ def main(argv: list[str] | None = None) -> None:
     interface_parser.set_defaults(func=cmd_interface)
 
     # jig interfaces
-    interfaces_parser = subparsers.add_parser(
-        "interfaces", help="List all installed node interfaces"
-    )
+    interfaces_parser = subparsers.add_parser("interfaces", help="List all installed node interfaces")
     interfaces_parser.add_argument(
         "--format",
         choices=["json", "yaml"],

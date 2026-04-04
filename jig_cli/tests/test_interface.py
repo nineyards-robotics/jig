@@ -13,9 +13,7 @@ SCHEMAS_DIR = Path(__file__).parents[2] / "jig" / "schemas"
 
 def test_returns_single_interface(run_jig):
     """jig interface --package <pkg> --executable <name> returns a single object."""
-    code, stdout, _ = run_jig(
-        "interface", "--package", "pkg_alpha", "--executable", "sensor_node"
-    )
+    code, stdout, _ = run_jig("interface", "--package", "pkg_alpha", "--executable", "sensor_node")
     assert code == 0
     result = json.loads(stdout)
     assert isinstance(result, dict)
@@ -25,9 +23,7 @@ def test_returns_single_interface(run_jig):
 
 def test_conforms_to_output_schema(run_jig):
     """Output conforms to the jig output.schema.yaml."""
-    code, stdout, _ = run_jig(
-        "interface", "--package", "pkg_alpha", "--executable", "sensor_node"
-    )
+    code, stdout, _ = run_jig("interface", "--package", "pkg_alpha", "--executable", "sensor_node")
     assert code == 0
     result = json.loads(stdout)
 
@@ -63,9 +59,7 @@ def test_format_yaml(run_jig):
 
 def test_plugin_lookup(run_jig):
     """jig interface --plugin finds a C++ node by plugin class string."""
-    code, stdout, _ = run_jig(
-        "interface", "--package", "pkg_gamma", "--plugin", "pkg_gamma::CppNode"
-    )
+    code, stdout, _ = run_jig("interface", "--package", "pkg_gamma", "--plugin", "pkg_gamma::CppNode")
     assert code == 0
     result = json.loads(stdout)
     assert result["node"]["package"] == "pkg_gamma"
@@ -74,25 +68,19 @@ def test_plugin_lookup(run_jig):
 
 def test_nonexistent_package(run_jig):
     """jig interface <bad_package> <executable> exits with error."""
-    code, stdout, stderr = run_jig(
-        "interface", "--package", "no_such_package", "--executable", "some_node"
-    )
+    code, stdout, stderr = run_jig("interface", "--package", "no_such_package", "--executable", "some_node")
     assert code != 0
 
 
 def test_nonexistent_executable(run_jig):
     """jig interface <valid_package> <bad_executable> exits with error."""
-    code, stdout, stderr = run_jig(
-        "interface", "--package", "pkg_alpha", "--executable", "no_such_node"
-    )
+    code, stdout, stderr = run_jig("interface", "--package", "pkg_alpha", "--executable", "no_such_node")
     assert code != 0
 
 
 def test_vendored_interface_discoverable(run_jig):
     """A vendored interface for a non-jig package is discoverable."""
-    code, stdout, _ = run_jig(
-        "interface", "--package", "pkg_external", "--executable", "external_node"
-    )
+    code, stdout, _ = run_jig("interface", "--package", "pkg_external", "--executable", "external_node")
     assert code == 0
     result = json.loads(stdout)
     assert result["node"]["package"] == "pkg_external"
@@ -101,9 +89,7 @@ def test_vendored_interface_discoverable(run_jig):
 
 def test_native_interface_wins_over_vendored(run_jig):
     """When both a native and vendored interface exist, native wins."""
-    code, stdout, _ = run_jig(
-        "interface", "--package", "pkg_alpha", "--executable", "sensor_node"
-    )
+    code, stdout, _ = run_jig("interface", "--package", "pkg_alpha", "--executable", "sensor_node")
     assert code == 0
     result = json.loads(stdout)
     assert result["node"]["package"] == "pkg_alpha"

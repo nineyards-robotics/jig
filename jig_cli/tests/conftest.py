@@ -32,9 +32,7 @@ def _build_test_ws() -> Path:
         shutil.rmtree(jig_dest)
     shutil.copytree(JIG_PKG_SRC, jig_dest)
 
-    src_mtime = max(
-        f.stat().st_mtime for f in (TEST_WS / "src").rglob("*") if f.is_file()
-    )
+    src_mtime = max(f.stat().st_mtime for f in (TEST_WS / "src").rglob("*") if f.is_file())
     needs_build = not install_dir.exists() or install_dir.stat().st_mtime < src_mtime
 
     if needs_build:
