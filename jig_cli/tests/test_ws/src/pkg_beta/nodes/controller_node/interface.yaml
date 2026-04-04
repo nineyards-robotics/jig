@@ -1,0 +1,10 @@
+subscribers:
+    - topic: plan
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
+
+services:
+    - name: enable
+      type: example_interfaces/srv/Trigger

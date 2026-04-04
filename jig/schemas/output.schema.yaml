@@ -12,6 +12,8 @@ description: |
   - QoS is optional on publishers (implicit publishers have no QoS specified)
 type: object
 additionalProperties: false
+required:
+  - node
 
 properties:
   node:

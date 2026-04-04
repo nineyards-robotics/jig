@@ -1,0 +1,13 @@
+subscribers:
+    - topic: goal
+      type: std_msgs/msg/String
+      qos:
+        history: 1
+        reliability: RELIABLE
+
+publishers:
+    - topic: plan
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
