@@ -62,13 +62,15 @@ def test_ws_install() -> Path:
 @pytest.fixture(scope="session")
 def test_ws_env(test_ws_install) -> dict[str, str]:
     """Return an environment dict with the test workspace on AMENT_PREFIX_PATH."""
-    setup_bash = test_ws_install / "setup.bash"
-    assert setup_bash.exists(), f"setup.bash not found at {setup_bash}"
+    # Use local_setup.bash (not setup.bash): setup.bash chains to whatever
+    # underlay was active at colcon-build time, which on CI re-activates the
+    # outer ros_ws and leaks packages like jig_example into the test env.
+    # local_setup.bash only sets up this workspace. We also unset
+    # AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH first so any values inherited from
+    # the parent process can't leak through via prepending.
+    setup_bash = test_ws_install / "local_setup.bash"
+    assert setup_bash.exists(), f"local_setup.bash not found at {setup_bash}"
 
-    # Unset AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH before sourcing so the test
-    # workspace is the *only* overlay visible. Otherwise on CI the outer
-    # ros_ws install (jig_example etc.) leaks in and test assertions about
-    # interface counts become sensitive to whatever else has been built.
     result = subprocess.run(
         [
             "bash",
