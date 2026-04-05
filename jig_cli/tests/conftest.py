@@ -65,8 +65,16 @@ def test_ws_env(test_ws_install) -> dict[str, str]:
     setup_bash = test_ws_install / "setup.bash"
     assert setup_bash.exists(), f"setup.bash not found at {setup_bash}"
 
+    # Unset AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH before sourcing so the test
+    # workspace is the *only* overlay visible. Otherwise on CI the outer
+    # ros_ws install (jig_example etc.) leaks in and test assertions about
+    # interface counts become sensitive to whatever else has been built.
     result = subprocess.run(
-        ["bash", "-c", f"source {setup_bash} && env -0"],
+        [
+            "bash",
+            "-c",
+            f"unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH && source {setup_bash} && env -0",
+        ],
         capture_output=True,
         text=True,
         check=True,
