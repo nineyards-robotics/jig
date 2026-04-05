@@ -18,8 +18,34 @@ Call locally from the repo root::
 import dagger
 from dagger import dag, function, object_type
 
-# Keep this list aligned with .github/workflows/ci.yml.
-SUPPORTED_DISTROS = ("humble", "jazzy", "kilted")
+
+def sh(*cmds: str) -> list[str]:
+    """Wrap a sequence of shell commands as an argv for ``with_exec``.
+
+    Dagger's ``with_exec`` takes a raw argv, so any step that needs shell
+    features (``source``, ``&&``, globs, env expansion) has to go through
+    ``bash -c "..."``. This helper keeps that boilerplate in one place:
+    callers pass commands as separate strings and we stitch them into a
+    single script.
+
+    The script is prefixed with ``set -ex``:
+
+    - ``-e`` aborts on the first non-zero exit, so a failing ``apt-get
+      update`` halts the step instead of limping on to a misleading error
+      three commands later.
+    - ``-x`` echoes each command before running it, which makes CI logs
+      self-describing when something goes wrong.
+
+    ``-u`` (error on unset variables) is deliberately *not* set: ROS's
+    ``setup.bash`` references ``AMENT_TRACE_SETUP_FILES`` without a
+    default and explodes under ``-u``.
+
+    Commands are joined with newlines rather than ``&&``. With ``-e`` in
+    effect the two are equivalent for error propagation, but newlines
+    avoid doubling up on failure handling and make the ``-x`` trace
+    render one command per line instead of a single ``a && b && c`` blob.
+    """
+    return ["bash", "-c", "\n".join(("set -ex", *cmds))]
 
 
 @object_type
@@ -31,51 +57,25 @@ class JigCi:
     async def lint(self, src: dagger.Directory) -> str:
         """Run pre-commit across the whole repo.
 
-        Uses a pinned python:3.12-slim base and installs the system tools
-        that pre-commit hooks shell out to (git, clang-format, cmake-format)
-        so the hooks don't need to fetch them at runtime.
+        Pre-commit manages its own hook environments (clang-format,
+        cmake-format, black, etc. all come from pinned pip/mirror repos),
+        so the only system dep we need is git.
         """
-        return (
-            await (
-                dag.container()
-                .from_("python:3.12-slim")
-                .with_exec(
-                    [
-                        "bash",
-                        "-c",
-                        (
-                            "set -eux && "
-                            "apt-get update && "
-                            "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "
-                            "git clang-format && "
-                            "rm -rf /var/lib/apt/lists/* && "
-                            "pip install --no-cache-dir pre-commit"
-                        ),
-                    ]
+        return await (
+            dag.container()
+            .from_("python:3.12-slim")
+            .with_exec(
+                sh(
+                    "apt-get update",
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git",
+                    "rm -rf /var/lib/apt/lists/*",
+                    "pip install --no-cache-dir pre-commit",
                 )
-                .with_mounted_directory("/src", src)
-                .with_workdir("/src")
-                # pre-commit requires a git repo to discover files; if the
-                # mounted directory isn't one (e.g. when invoked via
-                # `dagger call --src=.` from a non-git checkout), synthesise a
-                # throwaway one so hooks still run against every tracked file.
-                .with_exec(
-                    [
-                        "bash",
-                        "-c",
-                        (
-                            "set -eux && "
-                            "if [ ! -d .git ]; then "
-                            "  git init -q -b main && "
-                            "  git -c user.email=ci@jig -c user.name=ci add -A && "
-                            "  git -c user.email=ci@jig -c user.name=ci commit -q -m seed; "
-                            "fi && "
-                            "pre-commit run --all-files --show-diff-on-failure --color always"
-                        ),
-                    ]
-                )
-                .stdout()
             )
+            .with_mounted_directory("/src", src)
+            .with_workdir("/src")
+            .with_exec(["pre-commit", "run", "--all-files", "--show-diff-on-failure", "--color", "always"])
+            .stdout()
         )
 
     # ------------------------------------------------------------------
@@ -93,9 +93,6 @@ class JigCi:
         doing: drop the source tree into ``/ws/src/jig``, pull dependencies
         via rosdep, then colcon build + test.
         """
-        if ros_distro not in SUPPORTED_DISTROS:
-            raise ValueError(f"ros_distro must be one of {SUPPORTED_DISTROS}, got {ros_distro!r}")
-
         image = f"ros:{ros_distro}-ros-base"
         setup = f"source /opt/ros/{ros_distro}/setup.bash"
 
@@ -117,63 +114,37 @@ class JigCi:
         ):
             src = src.without_directory(polluted)
 
-        base = (
-            dag.container().from_(image)
-            # Tooling that isn't in *-ros-base but is needed for our build.
-            .with_exec(
-                [
-                    "bash",
-                    "-c",
-                    (
-                        "set -eux && "
-                        "apt-get update && "
-                        "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "
-                        "python3-colcon-common-extensions python3-rosdep python3-pip && "
-                        "rm -rf /var/lib/apt/lists/*"
-                    ),
-                ]
-            )
-        )
-
         workspace = (
-            base.with_mounted_directory("/ws/src/jig", src).with_workdir("/ws")
+            dag.container()
+            .from_(image)
+            .with_mounted_directory("/ws/src/jig", src)
+            .with_workdir("/ws")
             # rosdep is pre-initialised in the ros:* images, so just update
             # and resolve dependencies declared in the package.xml files.
             .with_exec(
-                [
-                    "bash",
-                    "-c",
-                    (
-                        "set -eux && "
-                        "apt-get update && "
-                        "rosdep update --rosdistro " + ros_distro + " && "
-                        "rosdep install --from-paths src --ignore-src -y "
-                        "--rosdistro " + ros_distro + " && "
-                        "rm -rf /var/lib/apt/lists/*"
-                    ),
-                ]
+                sh(
+                    "apt-get update",
+                    f"rosdep update --rosdistro {ros_distro}",
+                    f"rosdep install --from-paths src --ignore-src -y --rosdistro {ros_distro}",
+                    "rm -rf /var/lib/apt/lists/*",
+                )
             )
             # colcon build — source setup.bash in the same shell as colcon.
             .with_exec(
-                [
-                    "bash",
-                    "-c",
-                    f"set -ex && {setup} && colcon build --symlink-install --event-handlers console_direct+",
-                ]
+                sh(
+                    setup,
+                    "colcon build --symlink-install --event-handlers console_direct+",
+                )
             )
             # colcon test + result summary. Exit non-zero on any failure so
             # Dagger propagates it up as a pipeline failure.
             .with_exec(
-                [
-                    "bash",
-                    "-c",
-                    (
-                        "set -ex && "
-                        f"{setup} && source install/setup.bash && "
-                        "colcon test --event-handlers console_direct+ --return-code-on-test-failure && "
-                        "colcon test-result --verbose"
-                    ),
-                ]
+                sh(
+                    setup,
+                    "source install/setup.bash",
+                    "colcon test --event-handlers console_direct+ --return-code-on-test-failure",
+                    "colcon test-result --verbose",
+                )
             )
         )
 
