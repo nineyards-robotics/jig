@@ -65,9 +65,10 @@ def test_ws_env(test_ws_install) -> dict[str, str]:
     # Use local_setup.bash (not setup.bash): setup.bash chains to whatever
     # underlay was active at colcon-build time, which on CI re-activates the
     # outer ros_ws and leaks packages like jig_example into the test env.
-    # local_setup.bash only sets up this workspace. We also unset
-    # AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH first so any values inherited from
-    # the parent process can't leak through via prepending.
+    # local_setup.bash only sets up this workspace and prepends to the
+    # inherited AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH, so the currently-active
+    # ROS install (e.g. the pixi env providing stock ROS packages) remains
+    # available while jig_example from an outer overlay is not re-added.
     setup_bash = test_ws_install / "local_setup.bash"
     assert setup_bash.exists(), f"local_setup.bash not found at {setup_bash}"
 
@@ -75,7 +76,7 @@ def test_ws_env(test_ws_install) -> dict[str, str]:
         [
             "bash",
             "-c",
-            f"unset AMENT_PREFIX_PATH CMAKE_PREFIX_PATH && source {setup_bash} && env -0",
+            f"source {setup_bash} && env -0",
         ],
         capture_output=True,
         text=True,
