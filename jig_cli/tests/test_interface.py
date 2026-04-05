@@ -5,7 +5,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from referencing import Registry, Resource
 import yaml
 
 SCHEMAS_DIR = Path(__file__).parents[2] / "jig" / "schemas"
@@ -27,16 +26,13 @@ def test_conforms_to_output_schema(run_jig):
     assert code == 0
     result = json.loads(stdout)
 
-    from jsonschema import Draft202012Validator
+    from jsonschema import Draft202012Validator, RefResolver
 
     schema = yaml.safe_load((SCHEMAS_DIR / "output.schema.yaml").read_text())
     param_schema = yaml.safe_load((SCHEMAS_DIR / "parameter.schema.yaml").read_text())
 
-    registry = Registry().with_resource(
-        "parameter.schema.yaml",
-        Resource.from_contents(param_schema),
-    )
-    validator = Draft202012Validator(schema, registry=registry)
+    resolver = RefResolver.from_schema(schema, store={"parameter.schema.yaml": param_schema})
+    validator = Draft202012Validator(schema, resolver=resolver)
     validator.validate(result)
 
 
