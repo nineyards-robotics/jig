@@ -81,14 +81,6 @@ class JigCi:
     # ------------------------------------------------------------------
     # build_and_test
     # ------------------------------------------------------------------
-    #
-    # Packages in topological build order. ``jig_example`` depends on
-    # ``jig`` via ``<depend>jig</depend>`` in its package.xml; ``jig_cli``
-    # is pure ament_python with no intra-workspace deps so it can slot in
-    # anywhere. Adding a new package here is the one manual step required
-    # when the workspace grows.
-    PACKAGES: tuple[str, ...] = ("jig", "jig_example", "jig_cli")
-
     @function
     async def build_and_test(
         self,
@@ -97,8 +89,7 @@ class JigCi:
     ) -> str:
         """Build the jig workspace with colcon and run its tests.
 
-        Structured as a layered pipeline so that Dagger's per-operation
-        cache can skip work whose inputs haven't changed:
+        Two-stage pipeline:
 
         1. **rosdep stage** — only the ``package.xml`` files are mounted
            into the container before ``rosdep install`` runs. apt/rosdep
@@ -107,25 +98,25 @@ class JigCi:
            its only real inputs are the ``<depend>`` entries in the
            package manifests. Mounting just the manifests means editing
            any ``.cpp``/``.py``/``CMakeLists.txt`` leaves this layer as a
-           cache hit.
+           cache hit via Dagger's input-hashed per-op cache.
 
-        2. **per-package build + test, interleaved, in topological order**
-           — for each package we mount *only that package's* source tree,
-           run ``colcon build --packages-select <pkg>``, then
-           ``colcon test --packages-select <pkg>``. Dagger hashes each
-           ``with_exec`` by ``(parent layer, command, mount contents)``,
-           so editing a file inside ``jig_example`` leaves every earlier
-           layer (``jig`` build, ``jig`` test, ``jig_cli`` build,
-           ``jig_cli`` test) as cache hits and only reruns the
-           ``jig_example`` steps.
+        2. **workspace-wide colcon build + test**, with persistent
+           ``CacheVolume`` mounts for ``build/``, ``install/``, ``log/``
+           and ccache. Colcon's own incremental machinery (mtime-based
+           per-package skip, CMake reconfiguration only where needed)
+           decides what to rebuild; ccache covers object-file reuse even
+           when CMake does reconfigure or when Dagger's layer cache is
+           cold. The cache keys are per-ROS-distro so a humble ``build/``
+           never leaks into a jazzy run.
 
-           Builds and tests are interleaved per package rather than
-           "build everything, then test everything" so that a change to a
-           *downstream* package's source doesn't invalidate the cached
-           test runs of upstream packages. The trade-off is a linear
-           chain: editing ``jig`` still invalidates every layer below it,
-           which is the correct behaviour (dependents must rebuild)
-           rather than a caching deficiency.
+           Trade-off vs. per-package Dagger layers: ``CacheVolume`` is
+           mutable shared state, not content-addressed, so a poisoned
+           ``build/`` can persist across runs. If that happens, bump the
+           cache key suffix or purge the volume. In exchange, adding a
+           workspace package requires no changes to this function's
+           build loop, and cold-Dagger-cache runs (new branch, cleared
+           engine) get a big speedup from ccache that layer caching
+           cannot provide.
         """
         image = f"ros:{ros_distro}-ros-base"
         setup = f"source /opt/ros/{ros_distro}/setup.bash"
@@ -153,14 +144,18 @@ class JigCi:
         #
         # We build a fresh Directory containing *just* the package.xml
         # files at the same relative paths they'd have inside the
-        # workspace, then mount that. Using an explicit file list (rather
-        # than ``include=["**/package.xml"]``) avoids accidentally picking
-        # up the nested manifests under ``jig_cli/tests/test_ws/src/``,
-        # which are test fixtures — not real workspace packages — and
-        # would pull unnecessary rosdeps.
+        # workspace, then mount that. The glob is depth-limited to
+        # ``*/package.xml`` (one level below the repo root) rather than
+        # ``**/package.xml``: every real workspace package sits directly
+        # under the repo root, while the nested manifests under
+        # ``jig_cli/tests/test_ws/src/`` are test fixtures — not real
+        # packages — and would pull unnecessary rosdeps if included.
+        manifest_paths = await src.glob("*/package.xml")
+        if not manifest_paths:
+            raise RuntimeError("no workspace package.xml files found at */package.xml")
         manifests = dag.directory()
-        for pkg in self.PACKAGES:
-            manifests = manifests.with_file(f"{pkg}/package.xml", src.file(f"{pkg}/package.xml"))
+        for path in manifest_paths:
+            manifests = manifests.with_file(path, src.file(path))
 
         ctr = (
             dag.container()
@@ -180,35 +175,52 @@ class JigCi:
         )
 
         # ------------------------------------------------------------------
-        # Stage 2: per-package build + test, topologically ordered.
-        for pkg in self.PACKAGES:
-            ctr = (
-                ctr
-                # Overlay just this package's source on top of the
-                # manifests that are already in /ws/src/jig/<pkg>. The
-                # package.xml from stage 1 gets replaced with the
-                # (identical) one from the full source tree — benign.
-                .with_directory(f"/ws/src/jig/{pkg}", src.directory(pkg))
-                .with_exec(
-                    sh(
-                        setup,
-                        # If earlier packages have been installed in this
-                        # chain, their setup.bash exists — source it so
-                        # colcon can find their exported targets. On the
-                        # first iteration install/ doesn't exist yet.
-                        "[ -f install/setup.bash ] && source install/setup.bash || true",
-                        f"colcon build --symlink-install --event-handlers console_direct+ --packages-select {pkg}",
-                    )
-                )
-                .with_exec(
-                    sh(
-                        setup,
-                        "source install/setup.bash",
-                        f"colcon test --event-handlers console_direct+ --return-code-on-test-failure --packages-select {pkg}",
-                        f"colcon test-result --test-result-base build/{pkg} --verbose",
-                    )
+        # Stage 2: workspace-wide build + test with persistent caches.
+        #
+        # Cache keys are scoped per ROS distro — a humble build tree must
+        # never be reused under jazzy/kilted (different ABI, different
+        # /opt/ros prefix baked into CMake files). Bump the suffix to
+        # invalidate if a cache ever gets poisoned.
+        cache_key = f"jig-{ros_distro}-v1"
+        build_cache = dag.cache_volume(f"{cache_key}-build")
+        install_cache = dag.cache_volume(f"{cache_key}-install")
+        log_cache = dag.cache_volume(f"{cache_key}-log")
+        ccache_vol = dag.cache_volume(f"{cache_key}-ccache")
+
+        ctr = (
+            ctr
+            # Now overlay the full workspace source. The manifests from
+            # stage 1 at /ws/src/jig/<pkg>/package.xml get replaced with
+            # the (identical) ones from the full source tree — benign.
+            .with_directory("/ws/src/jig", src)
+            .with_mounted_cache("/ws/build", build_cache)
+            .with_mounted_cache("/ws/install", install_cache)
+            .with_mounted_cache("/ws/log", log_cache)
+            .with_mounted_cache("/root/.ccache", ccache_vol)
+            # Route the compilers through ccache. The ros:*-ros-base
+            # images ship ccache symlinks under /usr/lib/ccache; pointing
+            # CC/CXX there is enough for CMake's compiler detection to
+            # pick them up on first configure.
+            .with_env_variable("CC", "/usr/lib/ccache/gcc")
+            .with_env_variable("CXX", "/usr/lib/ccache/g++")
+            .with_exec(
+                sh(
+                    setup,
+                    "apt-get update",
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ccache",
+                    "rm -rf /var/lib/apt/lists/*",
+                    "colcon build --symlink-install --event-handlers console_direct+",
                 )
             )
+            .with_exec(
+                sh(
+                    setup,
+                    "source install/setup.bash",
+                    "colcon test --event-handlers console_direct+ --return-code-on-test-failure",
+                    "colcon test-result --verbose",
+                )
+            )
+        )
 
         return await ctr.stdout()
 
