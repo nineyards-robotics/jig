@@ -6,11 +6,15 @@ on:
     branches: [main]
 
 jobs:
-  pre-commit:
+  lint:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
+
+      - name: Run Dagger lint
+        uses: dagger/dagger-for-github@v8
         with:
-          python-version: "3.x"
-      - uses: pre-commit/action@v3.0.1
+          version: "0.20.3"
+          verb: call
+          module: .
+          args: lint --src=.

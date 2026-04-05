@@ -1561,6 +1561,29 @@ pre-commit install --hook-type prepare-commit-msg
 
 The `prepare-commit-msg` hook will automatically add the `Signed-off-by` line to your commits. If you prefer to sign off manually, use `git commit -s`.
 
+## Running CI locally
+
+CI for this repo runs through [Dagger](https://dagger.io) so the exact same pipeline executes on your laptop and on GitHub Actions. You need a container runtime (Docker/Podman) and the Dagger CLI:
+
+```bash
+curl -fsSL https://dl.dagger.io/dagger/install.sh | DAGGER_VERSION=0.20.3 BIN_DIR=$HOME/.local/bin sh
+```
+
+From the repo root (`src/jig`):
+
+```bash
+# Lint (pre-commit hooks)
+dagger call lint --src=.
+
+# Build and test against a ROS distro (humble | jazzy | kilted)
+dagger call build-and-test --src=. --ros-distro=jazzy
+
+# One-shot full PR check: lint + build-and-test
+dagger call ci --src=. --ros-distro=jazzy
+```
+
+The Dagger engine caches intermediate layers, so the second run of `build-and-test` is much faster than the first. The pipeline itself lives in `.dagger/src/jig_ci/main.py`.
+
 ### Pull Requests
 
 All pull requests are checked for DCO sign-off via CI. Commits without a `Signed-off-by` line will fail the check.

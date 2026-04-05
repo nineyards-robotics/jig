@@ -33,13 +33,13 @@ jobs:
         ros_distro: ${{ fromJson(needs.setup.outputs.distros) }}
       fail-fast: false
     name: build (${{ matrix.ros_distro }})
-    container:
-      image: ros:${{ matrix.ros_distro }}-ros-base
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ros-tooling/action-ros-ci@v0.4
+      - name: Run Dagger build-and-test
+        uses: dagger/dagger-for-github@v8
         with:
-          target-ros2-distro: ${{ matrix.ros_distro }}
-          package-name: jig jig_cli jig_example
-          coverage-result: false
+          version: "0.20.3"
+          verb: call
+          module: .
+          args: build-and-test --src=. --ros-distro=${{ matrix.ros_distro }}
