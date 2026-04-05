@@ -81,6 +81,14 @@ class JigCi:
     # ------------------------------------------------------------------
     # build_and_test
     # ------------------------------------------------------------------
+    #
+    # Packages in topological build order. ``jig_example`` depends on
+    # ``jig`` via ``<depend>jig</depend>`` in its package.xml; ``jig_cli``
+    # is pure ament_python with no intra-workspace deps so it can slot in
+    # anywhere. Adding a new package here is the one manual step required
+    # when the workspace grows.
+    PACKAGES: tuple[str, ...] = ("jig", "jig_example", "jig_cli")
+
     @function
     async def build_and_test(
         self,
@@ -89,9 +97,35 @@ class JigCi:
     ) -> str:
         """Build the jig workspace with colcon and run its tests.
 
-        Mirrors the work the old ``ros-tooling/action-ros-ci`` step was
-        doing: drop the source tree into ``/ws/src/jig``, pull dependencies
-        via rosdep, then colcon build + test.
+        Structured as a layered pipeline so that Dagger's per-operation
+        cache can skip work whose inputs haven't changed:
+
+        1. **rosdep stage** — only the ``package.xml`` files are mounted
+           into the container before ``rosdep install`` runs. apt/rosdep
+           resolution is the single most expensive step in a cold build
+           (tens of seconds pulling indices + installing system deps), and
+           its only real inputs are the ``<depend>`` entries in the
+           package manifests. Mounting just the manifests means editing
+           any ``.cpp``/``.py``/``CMakeLists.txt`` leaves this layer as a
+           cache hit.
+
+        2. **per-package build + test, interleaved, in topological order**
+           — for each package we mount *only that package's* source tree,
+           run ``colcon build --packages-select <pkg>``, then
+           ``colcon test --packages-select <pkg>``. Dagger hashes each
+           ``with_exec`` by ``(parent layer, command, mount contents)``,
+           so editing a file inside ``jig_example`` leaves every earlier
+           layer (``jig`` build, ``jig`` test, ``jig_cli`` build,
+           ``jig_cli`` test) as cache hits and only reruns the
+           ``jig_example`` steps.
+
+           Builds and tests are interleaved per package rather than
+           "build everything, then test everything" so that a change to a
+           *downstream* package's source doesn't invalidate the cached
+           test runs of upstream packages. The trade-off is a linear
+           chain: editing ``jig`` still invalidates every layer below it,
+           which is the correct behaviour (dependents must rebuild)
+           rather than a caching deficiency.
         """
         image = f"ros:{ros_distro}-ros-base"
         setup = f"source /opt/ros/{ros_distro}/setup.bash"
@@ -114,10 +148,24 @@ class JigCi:
         ):
             src = src.without_directory(polluted)
 
-        workspace = (
+        # ------------------------------------------------------------------
+        # Stage 1: rosdep install against manifests only.
+        #
+        # We build a fresh Directory containing *just* the package.xml
+        # files at the same relative paths they'd have inside the
+        # workspace, then mount that. Using an explicit file list (rather
+        # than ``include=["**/package.xml"]``) avoids accidentally picking
+        # up the nested manifests under ``jig_cli/tests/test_ws/src/``,
+        # which are test fixtures — not real workspace packages — and
+        # would pull unnecessary rosdeps.
+        manifests = dag.directory()
+        for pkg in self.PACKAGES:
+            manifests = manifests.with_file(f"{pkg}/package.xml", src.file(f"{pkg}/package.xml"))
+
+        ctr = (
             dag.container()
             .from_(image)
-            .with_mounted_directory("/ws/src/jig", src)
+            .with_directory("/ws/src/jig", manifests)
             .with_workdir("/ws")
             # rosdep is pre-initialised in the ros:* images, so just update
             # and resolve dependencies declared in the package.xml files.
@@ -129,26 +177,40 @@ class JigCi:
                     "rm -rf /var/lib/apt/lists/*",
                 )
             )
-            # colcon build — source setup.bash in the same shell as colcon.
-            .with_exec(
-                sh(
-                    setup,
-                    "colcon build --symlink-install --event-handlers console_direct+",
-                )
-            )
-            # colcon test + result summary. Exit non-zero on any failure so
-            # Dagger propagates it up as a pipeline failure.
-            .with_exec(
-                sh(
-                    setup,
-                    "source install/setup.bash",
-                    "colcon test --event-handlers console_direct+ --return-code-on-test-failure",
-                    "colcon test-result --verbose",
-                )
-            )
         )
 
-        return await workspace.stdout()
+        # ------------------------------------------------------------------
+        # Stage 2: per-package build + test, topologically ordered.
+        for pkg in self.PACKAGES:
+            ctr = (
+                ctr
+                # Overlay just this package's source on top of the
+                # manifests that are already in /ws/src/jig/<pkg>. The
+                # package.xml from stage 1 gets replaced with the
+                # (identical) one from the full source tree — benign.
+                .with_directory(f"/ws/src/jig/{pkg}", src.directory(pkg))
+                .with_exec(
+                    sh(
+                        setup,
+                        # If earlier packages have been installed in this
+                        # chain, their setup.bash exists — source it so
+                        # colcon can find their exported targets. On the
+                        # first iteration install/ doesn't exist yet.
+                        "[ -f install/setup.bash ] && source install/setup.bash || true",
+                        f"colcon build --symlink-install --event-handlers console_direct+ --packages-select {pkg}",
+                    )
+                )
+                .with_exec(
+                    sh(
+                        setup,
+                        "source install/setup.bash",
+                        f"colcon test --event-handlers console_direct+ --return-code-on-test-failure --packages-select {pkg}",
+                        f"colcon test-result --test-result-base build/{pkg} --verbose",
+                    )
+                )
+            )
+
+        return await ctr.stdout()
 
     # ------------------------------------------------------------------
     # ci
