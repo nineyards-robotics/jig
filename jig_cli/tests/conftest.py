@@ -65,12 +65,30 @@ def test_ws_env(test_ws_install) -> dict[str, str]:
     # Use local_setup.bash (not setup.bash): setup.bash chains to whatever
     # underlay was active at colcon-build time, which on CI re-activates the
     # outer ros_ws and leaks packages like jig_example into the test env.
-    # local_setup.bash only sets up this workspace and prepends to the
-    # inherited AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH, so the currently-active
-    # ROS install (e.g. the pixi env providing stock ROS packages) remains
-    # available while jig_example from an outer overlay is not re-added.
+    #
+    # On top of that, strip any *outer colcon overlay* entries from the
+    # inherited AMENT_PREFIX_PATH / CMAKE_PREFIX_PATH before sourcing
+    # local_setup.bash. local_setup.bash only prepends this workspace's
+    # prefixes; it does not remove what's already there. When tests run
+    # inside a dagger CI step (which sources the outer install/setup.bash
+    # before invoking colcon test) or in any dev shell where the user has
+    # sourced their outer ros_ws, that inherited value contains sibling
+    # packages' install prefixes (e.g. /ws/install/jig_example) and those
+    # packages leak their installed interface YAMLs into jig_cli's discovery.
+    #
+    # Heuristic: strip any entry whose path contains '/install/', which
+    # matches colcon-created install prefixes. Stock ROS distributions
+    # (/opt/ros/<distro>) and pixi-managed ROS (.pixi/envs/default) don't
+    # contain '/install/' in their prefix paths, so they are preserved.
     setup_bash = test_ws_install / "local_setup.bash"
     assert setup_bash.exists(), f"local_setup.bash not found at {setup_bash}"
+
+    child_env = os.environ.copy()
+    for var in ("AMENT_PREFIX_PATH", "CMAKE_PREFIX_PATH"):
+        if var not in child_env:
+            continue
+        kept = [entry for entry in child_env[var].split(os.pathsep) if entry and "/install/" not in entry]
+        child_env[var] = os.pathsep.join(kept)
 
     result = subprocess.run(
         [
@@ -81,6 +99,7 @@ def test_ws_env(test_ws_install) -> dict[str, str]:
         capture_output=True,
         text=True,
         check=True,
+        env=child_env,
     )
 
     env = {}
