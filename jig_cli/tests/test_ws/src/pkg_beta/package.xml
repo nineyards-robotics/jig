@@ -1,0 +1,17 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>pkg_beta</name>
+  <version>0.0.0</version>
+  <description>Test package for jig_cli tests.</description>
+  <maintainer email="test@test.com">Test</maintainer>
+  <license>Apache 2.0</license>
+
+  <depend>jig</depend>
+  <depend>std_msgs</depend>
+  <depend>example_interfaces</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

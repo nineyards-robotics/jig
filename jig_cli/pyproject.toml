@@ -1,0 +1,28 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "jig-cli"
+version = "0.0.0"
+description = "CLI tools for jig - declarative ROS 2 node scaffolding"
+license = {text = "Apache-2.0"}
+dynamic = ["requires-python"]
+dependencies = ["pyyaml"]
+maintainers = [
+    {name = "Alistair English", email = "hello@alistairenglish.com"},
+]
+
+# colcon test uses this to select pytest over setuppy_test
+[project.optional-dependencies]
+test = ["pytest", "jsonschema"]
+
+[project.scripts]
+jig = "jig_cli.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["jig_cli*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

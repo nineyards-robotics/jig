@@ -1,0 +1,6 @@
+publishers:
+    - topic: cpp_data
+      type: std_msgs/msg/String
+      qos:
+        history: 10
+        reliability: RELIABLE
