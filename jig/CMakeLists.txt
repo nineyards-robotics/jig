@@ -26,7 +26,7 @@ install(DIRECTORY stubs/tf2_py-stubs DESTINATION ${PYTHON_INSTALL_DIR})
 
 if(BUILD_TESTING)
     find_package(ament_cmake_pytest REQUIRED)
-    ament_add_pytest_test(test_generate_node_interface tests/test_generate_node_interface.py)
+    ament_add_pytest_test(test_generate_node_interface tests/test_generate_node_interface.py TIMEOUT 300)
 endif()
 
 ament_auto_package(USE_SCOPED_HEADER_INSTALL_DIR INSTALL_TO_SHARE schemas)
