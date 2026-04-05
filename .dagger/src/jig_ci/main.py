@@ -1,18 +1,18 @@
 """Dagger CI module for the jig repo.
 
-Exposes three functions:
+Exposes a single function:
 
-- ``lint``           — runs pre-commit against the whole repo.
 - ``build-and-test`` — colcon build + test inside a ROS 2 base container,
                        parameterised by ROS distro (humble/jazzy/kilted).
-- ``ci``             — convenience wrapper that runs ``lint`` then
-                       ``build-and-test``.
+
+Linting (pre-commit) is intentionally not handled here: it runs locally
+via the git pre-commit hook and in GitHub Actions directly, which has
+better caching for pre-commit environments than we'd get by shelling
+out through Dagger.
 
 Call locally from the repo root::
 
-    dagger call lint --src=.
     dagger call build-and-test --src=. --ros-distro=jazzy
-    dagger call ci --src=. --ros-distro=jazzy
 """
 
 import dagger
@@ -50,37 +50,6 @@ def sh(*cmds: str) -> list[str]:
 
 @object_type
 class JigCi:
-    # ------------------------------------------------------------------
-    # lint
-    # ------------------------------------------------------------------
-    @function
-    async def lint(self, src: dagger.Directory) -> str:
-        """Run pre-commit across the whole repo.
-
-        Pre-commit manages its own hook environments (clang-format,
-        cmake-format, black, etc. all come from pinned pip/mirror repos),
-        so the only system dep we need is git.
-        """
-        return await (
-            dag.container()
-            .from_("python:3.12-slim")
-            .with_exec(
-                sh(
-                    "apt-get update",
-                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends git",
-                    "rm -rf /var/lib/apt/lists/*",
-                    "pip install --no-cache-dir pre-commit",
-                )
-            )
-            .with_mounted_directory("/src", src)
-            .with_workdir("/src")
-            .with_exec(["pre-commit", "run", "--all-files", "--show-diff-on-failure", "--color", "always"])
-            .stdout()
-        )
-
-    # ------------------------------------------------------------------
-    # build_and_test
-    # ------------------------------------------------------------------
     @function
     async def build_and_test(
         self,
@@ -223,13 +192,3 @@ class JigCi:
         )
 
         return await ctr.stdout()
-
-    # ------------------------------------------------------------------
-    # ci
-    # ------------------------------------------------------------------
-    @function
-    async def ci(self, src: dagger.Directory, ros_distro: str) -> str:
-        """Run lint then build-and-test. The one-shot local PR check."""
-        lint_out = await self.lint(src)
-        build_out = await self.build_and_test(src, ros_distro)
-        return f"=== lint ===\n{lint_out}\n=== build-and-test ({ros_distro}) ===\n{build_out}"
