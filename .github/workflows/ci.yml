@@ -3,34 +3,14 @@ name: ci
 on:
   pull_request:
   push:
-    branches: [main, humble, jazzy, kilted]
+    branches: [main]
 
 jobs:
-  setup:
-    runs-on: ubuntu-latest
-    outputs:
-      distros: ${{ steps.set-distros.outputs.distros }}
-    steps:
-      - id: set-distros
-        run: |
-          # For PRs, use the target branch; for pushes, use the branch name
-          BRANCH="${{ github.base_ref || github.ref_name }}"
-          if [[ "$BRANCH" == "humble" ]]; then
-            echo 'distros=["humble"]' >> "$GITHUB_OUTPUT"
-          elif [[ "$BRANCH" == "jazzy" ]]; then
-            echo 'distros=["jazzy"]' >> "$GITHUB_OUTPUT"
-          elif [[ "$BRANCH" == "kilted" ]]; then
-            echo 'distros=["kilted"]' >> "$GITHUB_OUTPUT"
-          else
-            echo 'distros=["jazzy","kilted"]' >> "$GITHUB_OUTPUT"
-          fi
-
   build-and-test:
-    needs: setup
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        ros_distro: ${{ fromJson(needs.setup.outputs.distros) }}
+        ros_distro: [humble, jazzy, kilted]
       fail-fast: false
     name: build (${{ matrix.ros_distro }})
     steps:
