@@ -132,9 +132,9 @@ class SyncGroup8(Generic[SessionT, Msg1T, Msg2T, Msg3T, Msg4T, Msg5T, Msg6T, Msg
 class SyncGroup9(
     Generic[SessionT, Msg1T, Msg2T, Msg3T, Msg4T, Msg5T, Msg6T, Msg7T, Msg8T, Msg9T], _SyncGroupBase[SessionT]
 ):
-    _callback: Optional[
-        Callable[[SessionT, Msg1T, Msg2T, Msg3T, Msg4T, Msg5T, Msg6T, Msg7T, Msg8T, Msg9T], None]
-    ] = None
+    _callback: Optional[Callable[[SessionT, Msg1T, Msg2T, Msg3T, Msg4T, Msg5T, Msg6T, Msg7T, Msg8T, Msg9T], None]] = (
+        None
+    )
 
     def set_callback(
         self,
