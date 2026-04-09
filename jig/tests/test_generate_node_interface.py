@@ -1260,7 +1260,7 @@ subscribers:
 
     assert result.returncode != 0
     assert "[subscribers -> 0]" in result.stderr
-    assert "'type' is a required property" in result.stderr
+    assert "is not valid under any of the given schemas" in result.stderr
 
 
 def test_service_missing_name(tmp_path):
@@ -2587,6 +2587,206 @@ tf:
     )
 
     assert result.returncode != 0, "Generator should reject tf with unknown keys"
+
+
+def test_sync_group_max_interval_required_for_approximate(tmp_path):
+    """max_interval is required when policy is 'approximate'."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """subscribers:
+  - name: my_sync
+    policy: approximate
+    queue_size: 10
+    topics:
+      - topic: a
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+      - topic: b
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+"""
+    )
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "max_interval is required" in result.stderr
+
+
+def test_sync_group_max_interval_forbidden_for_exact(tmp_path):
+    """max_interval is not allowed when policy is 'exact'."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """subscribers:
+  - name: my_sync
+    policy: exact
+    queue_size: 10
+    max_interval: 0.1
+    topics:
+      - topic: a
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+      - topic: b
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+"""
+    )
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "max_interval is not allowed" in result.stderr
+
+
+def test_sync_group_name_collision_with_subscriber(tmp_path):
+    """Sync group name must not collide with a regular subscriber field name."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """subscribers:
+  - topic: odom
+    type: nav_msgs/msg/Odometry
+    qos: {history: 1, reliability: RELIABLE}
+  - name: odom
+    policy: exact
+    queue_size: 5
+    topics:
+      - topic: a
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+      - topic: b
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+"""
+    )
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "collides with a regular subscriber field name" in result.stderr
+
+
+def test_sync_group_for_each_param_forbidden(tmp_path):
+    """for_each_param is not supported in sync group topics."""
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        """parameters:
+  nodes:
+    type: string_array
+    default_value: [a, b]
+    read_only: true
+subscribers:
+  - name: my_sync
+    policy: exact
+    queue_size: 5
+    topics:
+      - topic: ${for_each_param:nodes}/data
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+      - topic: fixed
+        type: std_msgs/msg/String
+        qos: {history: 10, reliability: BEST_EFFORT}
+"""
+    )
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
+    assert "for_each_param" in result.stderr
+    assert "not supported in sync group" in result.stderr
+
+
+def test_sync_group_too_many_topics(tmp_path):
+    """Sync group with more than 9 topics should be rejected by schema."""
+    topics_yaml = "\n".join(
+        [
+            f"      - topic: t{i}\n        type: std_msgs/msg/String\n        qos: {{history: 1, reliability: BEST_EFFORT}}"
+            for i in range(10)
+        ]
+    )
+    yaml_file = tmp_path / "test.yaml"
+    yaml_file.write_text(
+        f"""subscribers:
+  - name: too_many
+    policy: exact
+    queue_size: 5
+    topics:
+{topics_yaml}
+"""
+    )
+    result = subprocess.run(
+        [
+            "python3",
+            str(SCRIPT_PATH),
+            str(yaml_file),
+            "--language",
+            "cpp",
+            "--package",
+            "test_package",
+            "--node-name",
+            "test_node",
+            "--output",
+            str(tmp_path),
+        ],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode != 0
 
 
 if __name__ == "__main__":

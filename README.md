@@ -641,6 +641,82 @@ subscribers:
 
 QoS is required for all subscribers. See [QoS Configuration](#qos-configuration) for details. Topic names support `${param:name}` substitution — see [Dynamic Topic/Service/Action Names](#dynamic-topicserviceaction-names).
 
+### Synchronised Subscribers (Sync Groups)
+
+When multiple topics need to be processed together based on matching timestamps, use a **sync group**. Jig wraps `message_filters` to pair messages by time and deliver them through a single callback.
+
+```yaml
+subscribers:
+    # Regular subscriber — works as normal
+    - topic: odom
+      type: nav_msgs/msg/Odometry
+      qos:
+        history: 1
+        reliability: RELIABLE
+
+    # Sync group — delivers paired messages via a single callback
+    - name: dual_fix
+      policy: approximate       # "approximate" or "exact"
+      queue_size: 10
+      max_interval: 0.05        # seconds (required for approximate, forbidden for exact)
+      topics:
+        - topic: fix_left
+          type: sensor_msgs/msg/NavSatFix
+          qos:
+            history: 10
+            reliability: BEST_EFFORT
+        - topic: fix_right
+          type: sensor_msgs/msg/NavSatFix
+          qos:
+            history: 10
+            reliability: BEST_EFFORT
+```
+
+Sync groups live in the `subscribers` list alongside regular subscribers. They are distinguished by having `name`, `policy`, and `topics` fields instead of `topic` and `type`. Both appear under `sn.subscribers.*` in generated code.
+
+**Fields:**
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `name` | Yes | Field name in generated code (valid C++ identifier) |
+| `policy` | Yes | `approximate` (time-based matching) or `exact` (exact timestamp match) |
+| `queue_size` | Yes | Per-topic message queue depth |
+| `max_interval` | Conditional | Max time difference in seconds. Required for `approximate`, forbidden for `exact` |
+| `topics` | Yes | 2-9 topics to synchronise, each with `topic`, `type`, and `qos` |
+
+**Constraints:**
+- A sync group must contain between 2 and 9 topics (the `message_filters` template arity limit)
+- `${for_each_param:...}` is not supported in sync group topic names (subscriber count must be known at compile time)
+- `${param:...}` substitution works in both topic names and QoS fields
+- Sync group names must not collide with regular subscriber field names
+
+#### C++ Usage
+
+```cpp
+CallbackReturn on_configure(std::shared_ptr<Session> sn) {
+    sn->subscribers.dual_fix->set_callback(
+        [](auto sn, auto left_msg, auto right_msg) {
+            // Both messages are from the same epoch
+            // Compute heading, odometry, etc.
+        });
+    return CallbackReturn::SUCCESS;
+}
+```
+
+#### Python Usage
+
+```python
+def on_configure(sn: Session) -> TransitionCallbackReturn:
+    sn.subscribers.dual_fix.set_callback(on_dual_fix)
+    return TransitionCallbackReturn.SUCCESS
+
+def on_dual_fix(sn, left_msg, right_msg):
+    # Both messages are from the same epoch
+    pass
+```
+
+The sync callback follows the same lifecycle guard as regular subscribers — it only fires when the node is in the ACTIVE state.
+
 ### Services
 
 ```yaml

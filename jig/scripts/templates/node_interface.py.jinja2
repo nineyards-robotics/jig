@@ -27,6 +27,9 @@ import jig
 {%- if needs_qos_helpers %}
 from jig.qos_helpers import _to_reliability, _to_durability, _to_liveliness
 {%- endif %}
+{%- if sync_groups %}
+import message_filters
+{%- endif %}
 {%- if tf_listener %}
 from tf2_ros import Buffer as TF2Buffer
 from tf2_ros import TransformListener as TF2TransformListener
@@ -62,13 +65,16 @@ class Publishers(Generic[SessionT]):
 
 @dataclass
 class Subscribers(Generic[SessionT]):
-{%- if subscribers %}
+{%- if subscribers or sync_groups %}
 {%- for sub in subscribers %}
 {%- if sub.for_each_param %}
     {{ sub.field_name }}: dict[str, jig.Subscriber[SessionT, {{ sub.msg_class }}]] = field(default_factory=dict)
 {%- else %}
     {{ sub.field_name }}: jig.Subscriber[SessionT, {{ sub.msg_class }}] = field(default_factory=jig.Subscriber)
 {%- endif %}
+{%- endfor %}
+{%- for sg in sync_groups %}
+    {{ sg.field_name }}: jig.SyncGroup{{ sg.num_topics }}[SessionT, {{ sg.topics | map(attribute='msg_class') | join(', ') }}] = field(default_factory=jig.SyncGroup{{ sg.num_topics }})
 {%- endfor %}
 {%- else %}
     pass
@@ -295,6 +301,17 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
         jig.attach_default_qos_handlers(sn.subscribers.{{ sub.field_name }})
 {%- endif %}
 {%- endfor %}
+{%- for sg in sync_groups %}
+
+        # initialise sync group: {{ sg.field_name }}
+        sn.subscribers.{{ sg.field_name }}._initialise(
+            sn, {{ sg.sync_class }}, {{ sg.queue_size }},
+            [
+{%- for topic in sg.topics %}
+                ({{ topic.msg_class }}, {{ topic.name_expr }}, {{ topic.qos_code }}),
+{%- endfor %}
+            ]{{ ', slop=' + sg.max_interval|string if sg.max_interval is not none else '' }})
+{%- endfor %}
 
         # initialise services
 {%- for srv in services %}
@@ -365,6 +382,9 @@ class _{{ class_name }}Node(jig.BaseNode[T]):
 {%- else %}
         sn.subscribers.{{ sub.field_name }}._destroy(sn.node)
 {%- endif %}
+{%- endfor %}
+{%- for sg in sync_groups %}
+        sn.subscribers.{{ sg.field_name }}._destroy(sn.node)
 {%- endfor %}
 {%- for srv in services %}
 {%- if srv.for_each_param %}

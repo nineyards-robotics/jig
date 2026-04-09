@@ -27,6 +27,7 @@
   <depend>python3-jinja2</depend>
   <depend>python3-jsonschema</depend>
   <depend>tf2_ros</depend>
+  <depend>message_filters</depend>
 
   <exec_depend>ament_index_python</exec_depend>
 

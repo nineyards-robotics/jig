@@ -1,0 +1,29 @@
+subscribers:
+    # regular subscriber alongside sync group
+    - topic: odom
+      type: nav_msgs/msg/Odometry
+      qos:
+        history: 1
+        reliability: RELIABLE
+
+    # sync group with three topics
+    - name: sensor_fusion
+      policy: approximate
+      queue_size: 20
+      max_interval: 0.1
+      topics:
+        - topic: lidar
+          type: sensor_msgs/msg/LaserScan
+          qos:
+            history: 10
+            reliability: BEST_EFFORT
+        - topic: camera
+          type: sensor_msgs/msg/Image
+          qos:
+            history: 5
+            reliability: BEST_EFFORT
+        - topic: imu
+          type: sensor_msgs/msg/Imu
+          qos:
+            history: 10
+            reliability: BEST_EFFORT

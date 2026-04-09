@@ -17,6 +17,9 @@
 #include <jig/subscriber.hpp>
 #include <jig/default_qos_handlers.hpp>
 {%- endif %}
+{%- if sync_groups %}
+#include <jig/sync_group.hpp>
+{%- endif %}
 {%- if services %}
 #include <jig/service.hpp>
 {%- endif %}
@@ -58,7 +61,7 @@ template <typename SessionType> struct {{ class_name }}Publishers {
 
 template <typename SessionType> struct {{ class_name }}Publishers {};
 {%- endif %}
-{%- if subscribers %}
+{%- if subscribers or sync_groups %}
 
 template <typename SessionType> struct {{ class_name }}Subscribers {
 {%- for sub in subscribers %}
@@ -67,6 +70,9 @@ template <typename SessionType> struct {{ class_name }}Subscribers {
 {%- else %}
     std::shared_ptr<jig::Subscriber<{{ sub.msg_type }}, SessionType>> {{ sub.field_name }};
 {%- endif %}
+{%- endfor %}
+{%- for sg in sync_groups %}
+    std::shared_ptr<jig::{{ 'ApproximateSync' if sg.policy == 'approximate' else 'ExactSync' }}<SessionType, {{ sg.topics | map(attribute='msg_type') | join(', ') }}>> {{ sg.field_name }};
 {%- endfor %}
 };
 {%- else %}
@@ -224,6 +230,18 @@ class {{ class_name }}Base : public jig::BaseNode<"{{ node_name }}", SessionType
 {%- endfor %}
 
 {%- endif %}
+{%- for sg in sync_groups %}
+
+        // init sync group: {{ sg.field_name }}
+        sn->subscribers.{{ sg.field_name }} = jig::create_{{ sg.policy }}_sync_group<SessionType,
+            {{ sg.topics | map(attribute='msg_type') | join(', ') }}>(
+            sn, {{ sg.queue_size }}{{ ', ' + sg.max_interval|string if sg.policy == 'approximate' else '' }},
+            std::array<jig::SyncTopicConfig, {{ sg.num_topics }}>{{ '{' }}
+{%- for topic in sg.topics %}
+                jig::SyncTopicConfig({{ topic.name_expr }}, {{ topic.qos_code }}){{ ',' if not loop.last else '' }}
+{%- endfor %}
+            {{ '}' }});
+{%- endfor %}
 {%- if services %}
         // init services
 {%- for srv in services %}

@@ -284,6 +284,23 @@ def generate_python_name_expression(name: str, for_each_loop_var: str | None = N
     return f'f"{result}"'
 
 
+def partition_subscribers(
+    subscribers_raw: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """
+    Partition the subscribers list into regular subscribers and sync groups.
+    Sync groups are distinguished by having 'name' + 'policy' + 'topics' keys.
+    """
+    regular = []
+    sync_groups = []
+    for entry in subscribers_raw:
+        if "name" in entry and "policy" in entry and "topics" in entry:
+            sync_groups.append(entry)
+        else:
+            regular.append(entry)
+    return regular, sync_groups
+
+
 def validate_param_references(interface_data: Dict[str, Any]) -> None:
     """
     Validate parameter references in QoS fields.
@@ -339,8 +356,9 @@ def validate_param_references(interface_data: Dict[str, Any]) -> None:
         if "qos" in pub:
             validate_qos_param_ref(pub["qos"], "publisher", pub["topic"])
 
-    # Validate subscribers
-    for sub in interface_data.get("subscribers", []):
+    # Validate subscribers (regular only; sync group QoS is validated in validate_sync_groups)
+    regular_subs, _ = partition_subscribers(interface_data.get("subscribers", []))
+    for sub in regular_subs:
         if sub.get("manually_created", False):
             continue
         if "qos" in sub:
@@ -480,6 +498,117 @@ def validate_name_param_references(interface_data: Dict[str, Any]) -> None:
                     )
 
 
+def validate_sync_groups(interface_data: Dict[str, Any]) -> None:
+    """
+    Validate semantic rules for sync groups that JSON schema cannot express.
+
+    Checks:
+    1. max_interval is required when policy: approximate, forbidden when policy: exact
+    2. Sync group name must not collide with any regular subscriber's field name
+    3. Topics within a sync group cannot use for_each_param
+    4. QoS param refs are valid (reuses existing validation)
+    5. Topic name param refs are valid
+
+    Raises:
+        InterfaceValidationError: If validation fails
+    """
+    all_subscribers = interface_data.get("subscribers", [])
+    regular_subs, sync_groups = partition_subscribers(all_subscribers)
+    parameters = interface_data.get("parameters", {})
+
+    if not sync_groups:
+        return
+
+    # Collect regular subscriber field names for collision detection
+    regular_field_names = set()
+    for sub in regular_subs:
+        if sub.get("manually_created", False):
+            continue
+        if "field_name" in sub:
+            regular_field_names.add(sub["field_name"])
+        else:
+            regular_field_names.add(name_to_field_name(sub["topic"]))
+
+    for sg in sync_groups:
+        sg_name = sg["name"]
+        policy = sg["policy"]
+
+        # Check 1: max_interval consistency
+        has_max_interval = "max_interval" in sg
+        if policy == "approximate" and not has_max_interval:
+            raise InterfaceValidationError(
+                f"sync group '{sg_name}': max_interval is required when policy is 'approximate'"
+            )
+        if policy == "exact" and has_max_interval:
+            raise InterfaceValidationError(
+                f"sync group '{sg_name}': max_interval is not allowed when policy is 'exact'"
+            )
+
+        # Check 2: name collision with regular subscribers
+        if sg_name in regular_field_names:
+            raise InterfaceValidationError(
+                f"sync group '{sg_name}': name collides with a regular subscriber field name"
+            )
+
+        for topic_entry in sg.get("topics", []):
+            topic_name = topic_entry.get("topic", "")
+
+            # Check 3: no for_each_param in sync group topics
+            if contains_for_each_param_ref(topic_name):
+                raise InterfaceValidationError(
+                    f"sync group '{sg_name}' topic '{topic_name}': "
+                    f"${{for_each_param:...}} is not supported in sync group topics"
+                )
+
+            # Check 4: validate QoS param refs
+            if "qos" in topic_entry:
+                for field_name, value in topic_entry["qos"].items():
+                    if not is_param_ref(value):
+                        continue
+                    param_name = extract_param_name(value)
+                    if param_name not in parameters:
+                        raise InterfaceValidationError(
+                            f"sync group '{sg_name}' topic '{topic_name}' qos.{field_name}: "
+                            f"references non-existent parameter '{param_name}'"
+                        )
+                    param_def = parameters[param_name]
+                    if not param_def.get("read_only", False):
+                        raise InterfaceValidationError(
+                            f"sync group '{sg_name}' topic '{topic_name}' qos.{field_name}: "
+                            f"parameter '{param_name}' must have read_only: true"
+                        )
+                    expected_type = QOS_FIELD_TYPES.get(field_name)
+                    if expected_type:
+                        actual_type = param_def.get("type", "")
+                        if actual_type != expected_type:
+                            raise InterfaceValidationError(
+                                f"sync group '{sg_name}' topic '{topic_name}' qos.{field_name}: "
+                                f"parameter '{param_name}' has type '{actual_type}', "
+                                f"but '{expected_type}' is required"
+                            )
+
+            # Check 5: validate topic name param refs
+            if contains_param_ref(topic_name):
+                for param_name in extract_all_param_names(topic_name):
+                    if param_name not in parameters:
+                        raise InterfaceValidationError(
+                            f"sync group '{sg_name}' topic '{topic_name}': "
+                            f"references non-existent parameter '{param_name}'"
+                        )
+                    param_def = parameters[param_name]
+                    if not param_def.get("read_only", False):
+                        raise InterfaceValidationError(
+                            f"sync group '{sg_name}' topic '{topic_name}': "
+                            f"parameter '{param_name}' must have read_only: true"
+                        )
+                    actual_type = param_def.get("type", "")
+                    if actual_type not in NAME_PARAM_ALLOWED_TYPES:
+                        raise InterfaceValidationError(
+                            f"sync group '{sg_name}' topic '{topic_name}': "
+                            f"parameter '{param_name}' has type '{actual_type}', only string allowed"
+                        )
+
+
 def validate_interface_yaml(interface_data: Dict[str, Any]) -> None:
     """
     Validate the complete interface.yaml structure using schema.
@@ -490,6 +619,7 @@ def validate_interface_yaml(interface_data: Dict[str, Any]) -> None:
     validate_with_schema(interface_data)
     validate_param_references(interface_data)
     validate_name_param_references(interface_data)
+    validate_sync_groups(interface_data)
 
 
 def get_dummy_parameter() -> Dict[str, Any]:
@@ -703,6 +833,107 @@ def prepare_entities(
 
         entities.append(prepared)
     return entities, needs_qos_helpers
+
+
+def prepare_sync_groups(
+    sync_groups_raw: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], bool]:
+    """
+    Prepare sync group data for C++ template rendering.
+
+    Returns:
+        tuple of (sync_groups_list, needs_qos_helpers)
+    """
+    sync_groups = []
+    needs_qos_helpers = False
+
+    for sg in sync_groups_raw:
+        policy = sg["policy"]
+
+        topics = []
+        for topic_entry in sg["topics"]:
+            topic_name = topic_entry["topic"]
+            name_expr = generate_cpp_name_expression(topic_name)
+
+            qos_code, topic_needs_helpers = generate_qos_code(topic_entry["qos"])
+            if topic_needs_helpers:
+                needs_qos_helpers = True
+
+            topics.append(
+                {
+                    "msg_type": ros_type_to_cpp(topic_entry["type"]),
+                    "qos_code": qos_code,
+                    "name_expr": name_expr,
+                }
+            )
+
+        sync_groups.append(
+            {
+                "field_name": sg["name"],
+                "policy": policy,
+                "queue_size": sg["queue_size"],
+                "max_interval": sg.get("max_interval"),
+                "num_topics": len(topics),
+                "topics": topics,
+            }
+        )
+
+    return sync_groups, needs_qos_helpers
+
+
+def prepare_python_sync_groups(
+    sync_groups_raw: List[Dict[str, Any]],
+) -> tuple[List[Dict[str, Any]], Set[str], bool]:
+    """
+    Prepare sync group data for Python template rendering.
+
+    Returns:
+        tuple of (sync_groups_list, qos_imports, needs_qos_helpers)
+    """
+    sync_groups = []
+    all_qos_imports: Set[str] = set()
+    needs_qos_helpers = False
+
+    for sg in sync_groups_raw:
+        policy = sg["policy"]
+        if policy == "approximate":
+            sync_class = "message_filters.ApproximateTimeSynchronizer"
+        else:
+            sync_class = "message_filters.TimeSynchronizer"
+
+        topics = []
+        for topic_entry in sg["topics"]:
+            topic_name = topic_entry["topic"]
+            name_expr = generate_python_name_expression(topic_name)
+            ros_type = topic_entry["type"]
+
+            qos_code, qos_imports, topic_needs_helpers = generate_python_qos_code(topic_entry["qos"])
+            all_qos_imports.update(qos_imports)
+            if topic_needs_helpers:
+                needs_qos_helpers = True
+
+            topics.append(
+                {
+                    "msg_class": ros_type_to_python_class(ros_type),
+                    "import_stmt": ros_type_to_python_import(ros_type),
+                    "qos_code": qos_code,
+                    "name_expr": name_expr,
+                }
+            )
+
+        sync_groups.append(
+            {
+                "field_name": sg["name"],
+                "policy": policy,
+                "sync_class": sync_class,
+                "queue_size": sg["queue_size"],
+                "max_interval": sg.get("max_interval"),
+                "num_topics": len(topics),
+                "topics": topics,
+            }
+        )
+
+    return sync_groups, all_qos_imports, needs_qos_helpers
 
 
 def ros_type_to_python_import(ros_type: str) -> str:
@@ -933,10 +1164,18 @@ def collect_includes(interface_data: Dict[str, Any]) -> List[str]:
     """Collect all required message, service, and action includes."""
     includes = set()
 
-    entity_keys = ["publishers", "subscribers", "services", "service_clients", "actions", "action_clients"]
+    entity_keys = ["publishers", "services", "service_clients", "actions", "action_clients"]
     for key in entity_keys:
         for entity in interface_data.get(key, []):
             includes.add(ros_type_to_include(entity["type"]))
+
+    # Subscribers need special handling: regular subs have 'type', sync groups have 'topics'
+    regular_subs, sync_groups = partition_subscribers(interface_data.get("subscribers", []))
+    for sub in regular_subs:
+        includes.add(ros_type_to_include(sub["type"]))
+    for sg in sync_groups:
+        for topic in sg["topics"]:
+            includes.add(ros_type_to_include(topic["type"]))
 
     return sorted(includes)
 
@@ -1093,6 +1332,24 @@ def generate_interface_yaml(
         plugin_name = get_plugin_name(interface_data)
         yaml_data["node"]["plugin"] = plugin_name
 
+    # Expand sync groups into individual subscriber entries
+    if "subscribers" in yaml_data:
+        expanded_subs = []
+        for entry in yaml_data["subscribers"]:
+            if "name" in entry and "policy" in entry and "topics" in entry:
+                # Sync group: expand each topic as a regular subscriber
+                for topic_entry in entry["topics"]:
+                    expanded_subs.append(
+                        {
+                            "topic": topic_entry["topic"],
+                            "type": topic_entry["type"],
+                            **({"qos": topic_entry["qos"]} if "qos" in topic_entry else {}),
+                        }
+                    )
+            else:
+                expanded_subs.append(entry)
+        yaml_data["subscribers"] = expanded_subs
+
     # Strip codegen-only fields from user-defined entities
     entity_list_keys = ["publishers", "subscribers", "services", "service_clients", "actions", "action_clients"]
     for key in entity_list_keys:
@@ -1144,13 +1401,15 @@ def generate_header(interface_data: Dict[str, Any]) -> str:
     node_name = interface_data["node"]["name"]
     package_name = interface_data["node"].get("package", "")
 
+    # Partition subscribers into regular and sync groups
+    regular_subs_raw, sync_groups_raw = partition_subscribers(interface_data.get("subscribers", []))
+
     # Prepare template data using generic entity preparation
     publishers, pub_needs_qos_helpers = prepare_entities(
         interface_data.get("publishers", []), ENTITY_CONFIGS[EntityKind.PUBLISHER]
     )
-    subscribers, sub_needs_qos_helpers = prepare_entities(
-        interface_data.get("subscribers", []), ENTITY_CONFIGS[EntityKind.SUBSCRIBER]
-    )
+    subscribers, sub_needs_qos_helpers = prepare_entities(regular_subs_raw, ENTITY_CONFIGS[EntityKind.SUBSCRIBER])
+    sync_groups, sg_needs_qos_helpers = prepare_sync_groups(sync_groups_raw)
     services, _ = prepare_entities(interface_data.get("services", []), ENTITY_CONFIGS[EntityKind.SERVICE])
     service_clients, _ = prepare_entities(
         interface_data.get("service_clients", []), ENTITY_CONFIGS[EntityKind.SERVICE_CLIENT]
@@ -1166,7 +1425,7 @@ def generate_header(interface_data: Dict[str, Any]) -> str:
     session_class = f"{class_name}Session"
 
     # Determine if QoS helpers are needed
-    needs_qos_helpers = pub_needs_qos_helpers or sub_needs_qos_helpers
+    needs_qos_helpers = pub_needs_qos_helpers or sub_needs_qos_helpers or sg_needs_qos_helpers
 
     # Determine if any entity uses for_each_param
     all_entity_lists = [publishers, subscribers, services, service_clients, actions, action_clients]
@@ -1189,6 +1448,7 @@ def generate_header(interface_data: Dict[str, Any]) -> str:
         message_includes=message_includes,
         publishers=publishers,
         subscribers=subscribers,
+        sync_groups=sync_groups,
         services=services,
         service_clients=service_clients,
         actions=actions,
@@ -1236,13 +1496,17 @@ def generate_python_interface(interface_data: Dict[str, Any]) -> str:
     node_name = interface_data["node"]["name"]
     package_name = interface_data["node"].get("package", "")
 
+    # Partition subscribers into regular and sync groups
+    regular_subs_raw, sync_groups_raw = partition_subscribers(interface_data.get("subscribers", []))
+
     # Prepare template data using generic entity preparation
     publishers, pub_qos_imports, pub_needs_helpers = prepare_python_entities(
         interface_data.get("publishers", []), ENTITY_CONFIGS[EntityKind.PUBLISHER]
     )
     subscribers, sub_qos_imports, sub_needs_helpers = prepare_python_entities(
-        interface_data.get("subscribers", []), ENTITY_CONFIGS[EntityKind.SUBSCRIBER]
+        regular_subs_raw, ENTITY_CONFIGS[EntityKind.SUBSCRIBER]
     )
+    sync_groups, sg_qos_imports, sg_needs_helpers = prepare_python_sync_groups(sync_groups_raw)
     services, srv_qos_imports, _ = prepare_python_entities(
         interface_data.get("services", []), ENTITY_CONFIGS[EntityKind.SERVICE]
     )
@@ -1255,10 +1519,10 @@ def generate_python_interface(interface_data: Dict[str, Any]) -> str:
     )
 
     # Collect all QoS imports
-    qos_imports = pub_qos_imports | sub_qos_imports | srv_qos_imports | cli_qos_imports
+    qos_imports = pub_qos_imports | sub_qos_imports | sg_qos_imports | srv_qos_imports | cli_qos_imports
 
     # Determine if QoS helpers are needed
-    needs_qos_helpers = pub_needs_helpers or sub_needs_helpers
+    needs_qos_helpers = pub_needs_helpers or sub_needs_helpers or sg_needs_helpers
 
     # Collect unique import statements from all entity types
     message_imports: Set[str] = set()
@@ -1267,6 +1531,11 @@ def generate_python_interface(interface_data: Dict[str, Any]) -> str:
         for entity in entity_list:
             if entity.get("import_stmt"):
                 message_imports.add(entity["import_stmt"])
+    # Also collect imports from sync group topics
+    for sg in sync_groups:
+        for topic in sg["topics"]:
+            if topic.get("import_stmt"):
+                message_imports.add(topic["import_stmt"])
 
     # Determine if any entity uses for_each_param
     has_for_each_param = any(entity.get("for_each_param") for entity_list in all_entities for entity in entity_list)
@@ -1294,6 +1563,7 @@ def generate_python_interface(interface_data: Dict[str, Any]) -> str:
         qos_imports=qos_imports,
         publishers=publishers,
         subscribers=subscribers,
+        sync_groups=sync_groups,
         services=services,
         service_clients=service_clients,
         actions=actions,
