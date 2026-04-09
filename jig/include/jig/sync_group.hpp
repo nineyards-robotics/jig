@@ -12,10 +12,19 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
+// Kilted+ moved to .hpp headers and deprecated the old .h shims.
+// Use __has_include so we keep building on Humble/Jazzy where only .h exists.
+#if __has_include(<message_filters/sync_policies/approximate_time.hpp>)
+#include <message_filters/subscriber.hpp>
+#include <message_filters/sync_policies/approximate_time.hpp>
+#include <message_filters/sync_policies/exact_time.hpp>
+#include <message_filters/synchronizer.hpp>
+#else
 #include <message_filters/subscriber.h>
 #include <message_filters/sync_policies/approximate_time.h>
 #include <message_filters/sync_policies/exact_time.h>
 #include <message_filters/synchronizer.h>
+#endif
 
 #include "session.hpp"
 
