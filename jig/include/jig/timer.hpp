@@ -6,6 +6,7 @@
 #include <lifecycle_msgs/msg/state.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "compat.hpp"
 #include "session.hpp"
 
 namespace jig {
@@ -28,21 +29,23 @@ auto create_timer(
     static_assert(std::is_base_of_v<Session, SessionType>, "SessionType must derive from jig::Session");
 
     std::weak_ptr<SessionType> weak_sn = sn;
+    auto cb = [weak_sn, callback]() {
+        auto sn = weak_sn.lock();
+        if (!sn)
+            return;
+        if (sn->node.get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+            callback(sn);
+        }
+    };
+#if JIG_HAS_TIMER_AUTOSTART
     auto timer = rclcpp::create_timer(
-        sn->node.shared_from_this(),
-        sn->node.get_clock(),
-        rclcpp::Duration(period),
-        [weak_sn, callback]() {
-            auto sn = weak_sn.lock();
-            if (!sn)
-                return;
-            if (sn->node.get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-                callback(sn);
-            }
-        },
-        group,
-        /* autostart = */ false
+        sn->node.shared_from_this(), sn->node.get_clock(), rclcpp::Duration(period), cb, group, /*autostart=*/false
     );
+#else
+    auto timer =
+        rclcpp::create_timer(sn->node.shared_from_this(), sn->node.get_clock(), rclcpp::Duration(period), cb, group);
+    timer->cancel();
+#endif
 
     sn->timers.push_back(timer);
     return timer;
@@ -66,21 +69,29 @@ auto create_wall_timer(
     static_assert(std::is_base_of_v<Session, SessionType>, "SessionType must derive from jig::Session");
 
     std::weak_ptr<SessionType> weak_sn = sn;
+    auto cb = [weak_sn, callback]() {
+        auto sn = weak_sn.lock();
+        if (!sn)
+            return;
+        if (sn->node.get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
+            callback(sn);
+        }
+    };
+#if JIG_HAS_TIMER_AUTOSTART
     auto timer = rclcpp::create_wall_timer(
         period,
-        [weak_sn, callback]() {
-            auto sn = weak_sn.lock();
-            if (!sn)
-                return;
-            if (sn->node.get_current_state().id() == lifecycle_msgs::msg::State::PRIMARY_STATE_ACTIVE) {
-                callback(sn);
-            }
-        },
+        cb,
         group,
         sn->node.get_node_base_interface().get(),
         sn->node.get_node_timers_interface().get(),
-        /* autostart = */ false
+        /*autostart=*/false
     );
+#else
+    auto timer = rclcpp::create_wall_timer(
+        period, cb, group, sn->node.get_node_base_interface().get(), sn->node.get_node_timers_interface().get()
+    );
+    timer->cancel();
+#endif
 
     sn->timers.push_back(timer);
     return timer;

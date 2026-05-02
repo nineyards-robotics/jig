@@ -159,6 +159,11 @@ macro(_jig_generate_nodes NODES_DIR)
         message(FATAL_ERROR "Could not find generate_node_interface.py in ${jig_DIR}/../../../lib/jig")
     endif()
 
+    # Track Jinja templates so changes invalidate every per-node codegen rule. Without this, edits to *.jinja2 do not
+    # re-render generated headers and stale outputs sit in the build cache.
+    get_filename_component(_jig_codegen_script_DIR ${_jig_codegen_script_BIN} DIRECTORY)
+    file(GLOB _jig_codegen_TEMPLATES "${_jig_codegen_script_DIR}/templates/*.jinja2")
+
     foreach(_jig_NODE_ENTRY ${_jig_NODE_DIRS})
         set(_jig_NODE_PATH "${NODES_DIR}/${_jig_NODE_ENTRY}")
         if(IS_DIRECTORY ${_jig_NODE_PATH})
@@ -241,6 +246,7 @@ macro(_jig_generate_cpp_node NODE_NAME INTERFACE_YAML)
         COMMAND ${_jig_node_CODEGEN_CMD}
         DEPENDS ${INTERFACE_YAML}
         DEPENDS ${_jig_codegen_script_BIN}
+        DEPENDS ${_jig_codegen_TEMPLATES}
         COMMENT "Generating C++ interface for node '${NODE_NAME}'"
         VERBATIM
     )
@@ -333,6 +339,7 @@ macro(_jig_generate_python_node NODE_NAME NODE_DIR INTERFACE_YAML)
         COMMAND ${_jig_node_CODEGEN_CMD}
         DEPENDS ${INTERFACE_YAML}
         DEPENDS ${_jig_codegen_script_BIN}
+        DEPENDS ${_jig_codegen_TEMPLATES}
         COMMENT "Generating Python interface for node '${NODE_NAME}'"
         VERBATIM
     )
