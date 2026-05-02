@@ -111,25 +111,19 @@ class JigCi:
         # ------------------------------------------------------------------
         # Stage 1: rosdep install against manifests only.
         #
-        # We build a fresh Directory containing *just* the package.xml
-        # files at the same relative paths they'd have inside the
-        # workspace, then mount that. The glob is depth-limited to
-        # ``*/package.xml`` (one level below the repo root) rather than
-        # ``**/package.xml``: every real workspace package sits directly
-        # under the repo root, while the nested manifests under
-        # ``jig_cli/tests/test_ws/src/`` are test fixtures — not real
-        # packages — and would pull unnecessary rosdeps if included.
-        manifest_paths = await src.glob("*/package.xml")
-        if not manifest_paths:
-            raise RuntimeError("no workspace package.xml files found at */package.xml")
-        manifests = dag.directory()
-        for path in manifest_paths:
-            manifests = manifests.with_file(path, src.file(path))
-
+        # Mount *just* the workspace package.xml files. The include filter
+        # is depth-limited to ``*/package.xml`` (one level below the repo
+        # root) rather than ``**/package.xml``: every real workspace
+        # package sits directly under the repo root, while the nested
+        # manifests under ``jig_cli/tests/test_ws/src/`` are test fixtures
+        # — not real packages — and would pull unnecessary rosdeps if
+        # included. The resulting mount is content-addressed over the
+        # filtered files only, so edits to .cpp/.py/CMakeLists.txt leave
+        # this layer as a cache hit.
         ctr = (
             dag.container()
             .from_(image)
-            .with_directory("/ws/src/jig", manifests)
+            .with_directory("/ws/src/jig", src, include=["*/package.xml"])
             .with_workdir("/ws")
             # rosdep is pre-initialised in the ros:* images, so just update
             # and resolve dependencies declared in the package.xml files.
@@ -138,6 +132,7 @@ class JigCi:
                     "apt-get update",
                     f"rosdep update --rosdistro {ros_distro}",
                     f"rosdep install --from-paths src --ignore-src -y --rosdistro {ros_distro}",
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ccache",
                     "rm -rf /var/lib/apt/lists/*",
                 )
             )
@@ -175,9 +170,6 @@ class JigCi:
             .with_exec(
                 sh(
                     setup,
-                    "apt-get update",
-                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ccache",
-                    "rm -rf /var/lib/apt/lists/*",
                     "colcon build --symlink-install --event-handlers console_direct+",
                 )
             )
