@@ -1,9 +1,9 @@
 from rclpy.callback_groups import CallbackGroup
 from rclpy.clock import Clock
-from rclpy.clock_type import ClockType
 
 from lifecycle_msgs.msg import State
 
+from ._compat import ClockType
 from .session import Session
 
 from typing import Callable, TypeVar
