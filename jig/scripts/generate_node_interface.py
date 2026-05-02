@@ -15,7 +15,7 @@ import tempfile
 
 from ament_index_python.packages import get_package_share_directory
 from jinja2 import Environment, FileSystemLoader
-from jsonschema import Draft202012Validator, RefResolver
+from jsonschema import Draft7Validator, RefResolver
 import yaml
 
 from typing import Any, Dict, List, Set
@@ -392,7 +392,7 @@ def validate_with_schema(interface_data: Dict[str, Any]) -> None:
     store = {"parameter.schema.yaml": parameter_schema}
     resolver = RefResolver.from_schema(interface_schema, store=store)
 
-    validator = Draft202012Validator(interface_schema, resolver=resolver)
+    validator = Draft7Validator(interface_schema, resolver=resolver)
     errors = list(validator.iter_errors(interface_data))
 
     if errors:
