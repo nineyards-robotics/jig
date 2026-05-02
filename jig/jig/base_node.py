@@ -1,3 +1,5 @@
+import traceback
+
 from rclpy.duration import Duration
 from rclpy.lifecycle import LifecycleNode, LifecycleState
 from rclpy.lifecycle import TransitionCallbackReturn as _RclpyTCR
@@ -154,43 +156,63 @@ class BaseNode(Generic[_SessionT]):
             self._session = None
 
     def _handle_configure(self) -> TransitionCallbackReturn:
-        self._session = self._create_session(self._node)
-        result = self._on_configure_cb(self._session)
+        try:
+            self._session = self._create_session(self._node)
+            result = self._on_configure_cb(self._session)
+        except Exception:
+            traceback.print_exc()
+            self._reset_session()
+            return TransitionCallbackReturn.FAILURE
         if int(result) == _FAILURE:
             self._reset_session()
         return result
 
     def _handle_activate(self) -> TransitionCallbackReturn:
         assert self._session is not None
-        if self._on_activate_cb is not None:
-            result = self._on_activate_cb(self._session)
-            if int(result) != _SUCCESS:
-                return result
-        self._activate_entities(self._session)
+        try:
+            if self._on_activate_cb is not None:
+                result = self._on_activate_cb(self._session)
+                if int(result) != _SUCCESS:
+                    return result
+            self._activate_entities(self._session)
+        except Exception:
+            traceback.print_exc()
+            return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_deactivate(self) -> TransitionCallbackReturn:
         assert self._session is not None
-        if self._on_deactivate_cb is not None:
-            result = self._on_deactivate_cb(self._session)
-            if int(result) != _SUCCESS:
-                return result
-        self._deactivate_entities(self._session)
+        try:
+            if self._on_deactivate_cb is not None:
+                result = self._on_deactivate_cb(self._session)
+                if int(result) != _SUCCESS:
+                    return result
+            self._deactivate_entities(self._session)
+        except Exception:
+            traceback.print_exc()
+            return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_cleanup(self) -> TransitionCallbackReturn:
         assert self._session is not None
-        if self._on_cleanup_cb is not None:
-            result = self._on_cleanup_cb(self._session)
-            if int(result) != _SUCCESS:
-                return result
-        self._reset_session()
+        try:
+            if self._on_cleanup_cb is not None:
+                result = self._on_cleanup_cb(self._session)
+                if int(result) != _SUCCESS:
+                    return result
+            self._reset_session()
+        except Exception:
+            traceback.print_exc()
+            return TransitionCallbackReturn.FAILURE
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_shutdown(self) -> TransitionCallbackReturn:
         if self._session is not None:
-            if self._on_shutdown_cb is not None:
-                self._on_shutdown_cb(self._session)
+            try:
+                if self._on_shutdown_cb is not None:
+                    self._on_shutdown_cb(self._session)
+            except Exception:
+                traceback.print_exc()
             self._reset_session()
         return TransitionCallbackReturn.SUCCESS
 
