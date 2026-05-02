@@ -149,20 +149,10 @@ def publish_message(node: Node, topic: str, msg_type, msg, qos=10):
 
 
 def state_qos():
-    """QoS profile matching the lifecycle ~/state publisher (transient local)."""
-    return QoSProfile(
-        history=HistoryPolicy.KEEP_LAST,
-        depth=1,
-        reliability=ReliabilityPolicy.RELIABLE,
-        durability=DurabilityPolicy.TRANSIENT_LOCAL,
-    )
+    """QoS profile matching base_node's ~/state heartbeat publisher.
 
-
-def heartbeat_qos():
-    """QoS matching base_node's ~/state heartbeat publisher.
-
-    Humble cannot pair intraprocess comms with TRANSIENT_LOCAL, so the publisher
-    falls back to VOLATILE there (see jig/_compat.py and jig/include/jig/compat.hpp).
+    TRANSIENT_LOCAL on Iron+; humble downgrades to VOLATILE because its
+    intraprocess comms reject TRANSIENT_LOCAL (see jig/_compat.py).
     """
     durability = (
         DurabilityPolicy.VOLATILE if os.environ.get("ROS_DISTRO") == "humble" else DurabilityPolicy.TRANSIENT_LOCAL

@@ -7,7 +7,6 @@ from helpers import (
     TIMEOUT,
     call_service,
     collect_topic_messages,
-    heartbeat_qos,
     state_qos,
     transition_node,
     wait_for_node_state,
@@ -19,6 +18,7 @@ import launch_testing
 import launch_testing.actions
 import pytest
 import rclpy
+from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
 
 from lifecycle_msgs.msg import State, Transition
 from std_msgs.msg import String
@@ -110,13 +110,20 @@ class TestLifecycle(unittest.TestCase):
         self.assertTrue(transition_node(self.node, "/lifecycle_node/lifecycle_node", Transition.TRANSITION_CONFIGURE))
         self.assertTrue(wait_for_node_state(self.node, "/lifecycle_node/lifecycle_node", State.PRIMARY_STATE_INACTIVE))
 
-        # Verify state_report topic exists and has content (TRANSIENT_LOCAL)
+        # state_report is published by a python lifecycle node (no IPC), so it stays
+        # TRANSIENT_LOCAL even on humble. The subscription must match to receive the
+        # latched message published during configure (before this subscribe).
         received = []
         sub = self.node.create_subscription(
             String,
             "/lifecycle_node/state_report",
             lambda msg: received.append(msg.data),
-            state_qos(),
+            QoSProfile(
+                history=HistoryPolicy.KEEP_LAST,
+                depth=1,
+                reliability=ReliabilityPolicy.RELIABLE,
+                durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            ),
         )
         end = self.node.get_clock().now() + rclpy.duration.Duration(seconds=3.0)
         while self.node.get_clock().now() < end:
@@ -155,7 +162,7 @@ class TestLifecycle(unittest.TestCase):
             "/echo_node/echo_node/state",
             State,
             duration=2.0,
-            qos=heartbeat_qos(),
+            qos=state_qos(),
         )
         self.assertGreater(len(messages), 0, "Expected state heartbeat messages")
         for msg in messages:
