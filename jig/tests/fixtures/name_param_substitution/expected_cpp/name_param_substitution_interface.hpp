@@ -10,6 +10,7 @@
 #include <std_srvs/srv/set_bool.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/publisher.hpp>
 #include <jig/subscriber.hpp>
@@ -85,7 +86,7 @@ class NameParamSubstitutionBase : public jig::BaseNode<"name_param_substitution"
         // init services
         sn->services.get_state = jig::create_service<std_srvs::srv::Trigger>(sn, "/robot/" + sn->params.robot_id + "/get_state");
         // init service clients
-        sn->service_clients.external_service = sn->node.template create_client<std_srvs::srv::SetBool>("/" + sn->params.namespace + "/service", rclcpp::ServicesQoS(), this->client_callback_group());
+        sn->service_clients.external_service = sn->node.template create_client<std_srvs::srv::SetBool>("/" + sn->params.namespace + "/service", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
         return sn;
     }
 

@@ -10,6 +10,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/publisher.hpp>
 #include <jig/subscriber.hpp>
@@ -86,8 +87,8 @@ class ServiceClientsMixedBase : public jig::BaseNode<"service_clients_mixed", Se
         // init services
         sn->services.reset = jig::create_service<std_srvs::srv::Trigger>(sn, "/reset");
         // init service clients
-        sn->service_clients.add_two_ints = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("/add_two_ints", rclcpp::ServicesQoS(), this->client_callback_group());
-        sn->service_clients.compute = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("compute", rclcpp::ServicesQoS(), this->client_callback_group());
+        sn->service_clients.add_two_ints = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("/add_two_ints", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
+        sn->service_clients.compute = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("compute", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
         return sn;
     }
 

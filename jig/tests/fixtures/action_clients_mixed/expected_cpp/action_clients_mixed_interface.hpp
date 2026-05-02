@@ -13,6 +13,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/publisher.hpp>
 #include <jig/subscriber.hpp>
@@ -94,7 +95,7 @@ class ActionClientsMixedBase : public jig::BaseNode<"action_clients_mixed", Sess
         // init services
         sn->services.reset = jig::create_service<std_srvs::srv::Trigger>(sn, "/reset");
         // init service clients
-        sn->service_clients.compute = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("/compute", rclcpp::ServicesQoS(), this->client_callback_group());
+        sn->service_clients.compute = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("/compute", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
         // init actions
         sn->actions.fibonacci_server = jig::create_single_goal_action_server<example_interfaces::action::Fibonacci>(sn, "fibonacci_server");
         // init action clients

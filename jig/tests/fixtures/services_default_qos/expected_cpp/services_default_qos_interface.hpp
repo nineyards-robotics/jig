@@ -8,6 +8,7 @@
 #include <example_interfaces/srv/add_two_ints.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/service.hpp>
 #include <test_package/services_default_qos_parameters.hpp>
