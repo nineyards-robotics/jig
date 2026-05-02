@@ -1,5 +1,7 @@
 """Shared test utilities for jig_example launch tests."""
 
+import os
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -153,4 +155,21 @@ def state_qos():
         depth=1,
         reliability=ReliabilityPolicy.RELIABLE,
         durability=DurabilityPolicy.TRANSIENT_LOCAL,
+    )
+
+
+def heartbeat_qos():
+    """QoS matching base_node's ~/state heartbeat publisher.
+
+    Humble cannot pair intraprocess comms with TRANSIENT_LOCAL, so the publisher
+    falls back to VOLATILE there (see jig/_compat.py and jig/include/jig/compat.hpp).
+    """
+    durability = (
+        DurabilityPolicy.VOLATILE if os.environ.get("ROS_DISTRO") == "humble" else DurabilityPolicy.TRANSIENT_LOCAL
+    )
+    return QoSProfile(
+        history=HistoryPolicy.KEEP_LAST,
+        depth=1,
+        reliability=ReliabilityPolicy.RELIABLE,
+        durability=durability,
     )

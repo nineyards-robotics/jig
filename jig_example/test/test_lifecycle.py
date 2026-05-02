@@ -7,6 +7,7 @@ from helpers import (
     TIMEOUT,
     call_service,
     collect_topic_messages,
+    heartbeat_qos,
     state_qos,
     transition_node,
     wait_for_node_state,
@@ -154,7 +155,7 @@ class TestLifecycle(unittest.TestCase):
             "/echo_node/echo_node/state",
             State,
             duration=2.0,
-            qos=state_qos(),
+            qos=heartbeat_qos(),
         )
         self.assertGreater(len(messages), 0, "Expected state heartbeat messages")
         for msg in messages:

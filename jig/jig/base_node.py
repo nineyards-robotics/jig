@@ -3,10 +3,11 @@ import traceback
 from rclpy.duration import Duration
 from rclpy.lifecycle import LifecycleNode, LifecycleState
 from rclpy.lifecycle import TransitionCallbackReturn as _RclpyTCR
-from rclpy.qos import DurabilityPolicy, LivelinessPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.qos import LivelinessPolicy, QoSProfile, ReliabilityPolicy
 
 import lifecycle_msgs.msg
 
+from ._compat import INTRAPROCESS_DURABILITY
 from .session import Session
 from .transition import TransitionCallbackReturn
 
@@ -121,10 +122,11 @@ class BaseNode(Generic[_SessionT]):
         self._on_shutdown_cb = on_shutdown
 
         # State heartbeat publisher + timer (always active, not lifecycle-managed).
+        # INTRAPROCESS_DURABILITY: transient_local on Iron+, volatile on Humble (see _compat.py).
         state_qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            durability=INTRAPROCESS_DURABILITY,
             deadline=Duration(nanoseconds=100_000_000),
             liveliness=LivelinessPolicy.AUTOMATIC,
             liveliness_lease_duration=Duration(nanoseconds=100_000_000),
