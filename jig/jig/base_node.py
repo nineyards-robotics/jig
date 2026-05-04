@@ -163,8 +163,7 @@ class BaseNode(Generic[_SessionT]):
             result = self._on_configure_cb(self._session)
         except Exception:
             traceback.print_exc()
-            self._reset_session()
-            return TransitionCallbackReturn.FAILURE
+            raise
         if int(result) == _FAILURE:
             self._reset_session()
         return result
@@ -179,7 +178,7 @@ class BaseNode(Generic[_SessionT]):
             self._activate_entities(self._session)
         except Exception:
             traceback.print_exc()
-            return TransitionCallbackReturn.FAILURE
+            raise
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_deactivate(self) -> TransitionCallbackReturn:
@@ -192,7 +191,7 @@ class BaseNode(Generic[_SessionT]):
             self._deactivate_entities(self._session)
         except Exception:
             traceback.print_exc()
-            return TransitionCallbackReturn.FAILURE
+            raise
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_cleanup(self) -> TransitionCallbackReturn:
@@ -205,7 +204,7 @@ class BaseNode(Generic[_SessionT]):
             self._reset_session()
         except Exception:
             traceback.print_exc()
-            return TransitionCallbackReturn.FAILURE
+            raise
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_shutdown(self) -> TransitionCallbackReturn:
@@ -215,6 +214,7 @@ class BaseNode(Generic[_SessionT]):
                     self._on_shutdown_cb(self._session)
             except Exception:
                 traceback.print_exc()
+                raise
             self._reset_session()
         return TransitionCallbackReturn.SUCCESS
 
