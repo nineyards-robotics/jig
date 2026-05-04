@@ -3,6 +3,13 @@ project(jig_example)
 
 if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_compile_options(-Wall -Wextra -Wpedantic -Werror)
+    # GCC 13 false positives in std::vector copy from humble's rclcpp intra_process_manager.hpp:217-221
+    # (do_intra_process_publish). See GCC Bugzilla #107852. https://gcc.gnu.org/bugzilla/show_bug.cgi?id=107852
+    if("$ENV{ROS_DISTRO}" STREQUAL "humble" AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION
+                                                                                         VERSION_GREATER_EQUAL 13
+    )
+        add_compile_options(-Wno-error=array-bounds -Wno-error=stringop-overflow)
+    endif()
 endif()
 
 find_package(jig REQUIRED)
