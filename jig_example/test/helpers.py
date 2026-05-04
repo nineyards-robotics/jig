@@ -1,5 +1,7 @@
 """Shared test utilities for jig_example launch tests."""
 
+import os
+
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import DurabilityPolicy, HistoryPolicy, QoSProfile, ReliabilityPolicy
@@ -147,10 +149,17 @@ def publish_message(node: Node, topic: str, msg_type, msg, qos=10):
 
 
 def state_qos():
-    """QoS profile matching the lifecycle ~/state publisher (transient local)."""
+    """QoS profile matching base_node's ~/state heartbeat publisher.
+
+    TRANSIENT_LOCAL on Iron+; humble downgrades to VOLATILE because its
+    intraprocess comms reject TRANSIENT_LOCAL (see jig/_compat.py).
+    """
+    durability = (
+        DurabilityPolicy.VOLATILE if os.environ.get("ROS_DISTRO") == "humble" else DurabilityPolicy.TRANSIENT_LOCAL
+    )
     return QoSProfile(
         history=HistoryPolicy.KEEP_LAST,
         depth=1,
         reliability=ReliabilityPolicy.RELIABLE,
-        durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        durability=durability,
     )

@@ -7,6 +7,7 @@
 #include <lifecycle_msgs/msg/state.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "compat.hpp"
 #include "session.hpp"
 
 namespace jig {
@@ -42,7 +43,7 @@ template <typename ServiceT, typename SessionType> class Service {
                 }
                 request_handler_(sn, request, response);
             },
-            qos
+            JIG_LIFECYCLE_QOS(qos)
         );
     }
 

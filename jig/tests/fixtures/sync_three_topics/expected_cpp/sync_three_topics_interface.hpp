@@ -10,6 +10,7 @@
 #include <sensor_msgs/msg/imu.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/subscriber.hpp>
 #include <jig/default_qos_handlers.hpp>

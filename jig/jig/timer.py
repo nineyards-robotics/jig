@@ -1,9 +1,9 @@
 from rclpy.callback_groups import CallbackGroup
 from rclpy.clock import Clock
-from rclpy.clock_type import ClockType
 
 from lifecycle_msgs.msg import State
 
+from ._compat import HAS_TIMER_AUTOSTART, ClockType
 from .session import Session
 
 from typing import Callable, TypeVar
@@ -24,13 +24,23 @@ def create_timer(
             return
         callback(session)
 
-    timer = session.node.create_timer(
-        timer_period_sec,
-        callback=guarded_callback,
-        callback_group=callback_group,
-        clock=clock,
-        autostart=autostart,
-    )
+    if HAS_TIMER_AUTOSTART:
+        timer = session.node.create_timer(
+            timer_period_sec,
+            callback=guarded_callback,
+            callback_group=callback_group,
+            clock=clock,
+            autostart=autostart,
+        )
+    else:
+        timer = session.node.create_timer(
+            timer_period_sec,
+            callback=guarded_callback,
+            callback_group=callback_group,
+            clock=clock,
+        )
+        if not autostart:
+            timer.cancel()
     session.timers.append(timer)
 
 
@@ -46,13 +56,23 @@ def create_wall_timer(
             return
         callback(session)
 
-    timer = session.node.create_timer(
-        timer_period_sec,
-        callback=guarded_callback,
-        callback_group=callback_group,
-        clock=Clock(clock_type=ClockType.STEADY_TIME),
-        autostart=autostart,
-    )
+    if HAS_TIMER_AUTOSTART:
+        timer = session.node.create_timer(
+            timer_period_sec,
+            callback=guarded_callback,
+            callback_group=callback_group,
+            clock=Clock(clock_type=ClockType.STEADY_TIME),
+            autostart=autostart,
+        )
+    else:
+        timer = session.node.create_timer(
+            timer_period_sec,
+            callback=guarded_callback,
+            callback_group=callback_group,
+            clock=Clock(clock_type=ClockType.STEADY_TIME),
+        )
+        if not autostart:
+            timer.cancel()
     session.timers.append(timer)
 
 

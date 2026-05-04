@@ -1,9 +1,9 @@
-from rclpy.event_handler import QoSLivelinessChangedInfo, QoSRequestedDeadlineMissedInfo, SubscriptionEventCallbacks
 from rclpy.qos import QoSProfile
 from rclpy.subscription import Subscription
 
 from lifecycle_msgs.msg import State
 
+from ._compat import QoSLivelinessChangedInfo, QoSRequestedDeadlineMissedInfo, SubscriptionEventCallbacks
 from .session import Session
 
 from typing import Any, Callable, Generic, Optional, TypeVar, cast

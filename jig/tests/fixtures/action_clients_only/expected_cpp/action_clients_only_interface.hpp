@@ -8,6 +8,7 @@
 #include <example_interfaces/action/fibonacci.hpp>
 #include <nav2_msgs/action/navigate_to_pose.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <test_package/action_clients_only_parameters.hpp>
 

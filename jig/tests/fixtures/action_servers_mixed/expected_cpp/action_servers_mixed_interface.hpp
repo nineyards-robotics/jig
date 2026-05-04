@@ -10,6 +10,7 @@
 #include <std_msgs/msg/string.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/publisher.hpp>
 #include <jig/subscriber.hpp>

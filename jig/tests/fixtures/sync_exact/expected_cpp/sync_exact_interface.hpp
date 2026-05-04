@@ -7,6 +7,7 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <sensor_msgs/msg/image.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/sync_group.hpp>
 #include <test_package/sync_exact_parameters.hpp>

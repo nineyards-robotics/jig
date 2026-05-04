@@ -8,6 +8,7 @@
 #include <lifecycle_msgs/srv/change_state.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/publisher.hpp>
 #include <jig/subscriber.hpp>
@@ -83,7 +84,7 @@ class ForEachParamBase : public jig::BaseNode<"for_each_param", SessionType, ext
         }
         // init service clients
         for (const auto& key : sn->params.managed_nodes) {
-            sn->service_clients.change_state_clients[key] = sn->node.template create_client<lifecycle_msgs::srv::ChangeState>("/" + key + "/change_state", rclcpp::ServicesQoS(), this->client_callback_group());
+            sn->service_clients.change_state_clients[key] = sn->node.template create_client<lifecycle_msgs::srv::ChangeState>("/" + key + "/change_state", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
         }
         return sn;
     }

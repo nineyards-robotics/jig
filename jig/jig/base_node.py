@@ -1,10 +1,13 @@
+import traceback
+
 from rclpy.duration import Duration
 from rclpy.lifecycle import LifecycleNode, LifecycleState
 from rclpy.lifecycle import TransitionCallbackReturn as _RclpyTCR
-from rclpy.qos import DurabilityPolicy, LivelinessPolicy, QoSProfile, ReliabilityPolicy
+from rclpy.qos import LivelinessPolicy, QoSProfile, ReliabilityPolicy
 
 import lifecycle_msgs.msg
 
+from ._compat import INTRAPROCESS_DURABILITY
 from .session import Session
 from .transition import TransitionCallbackReturn
 
@@ -119,10 +122,11 @@ class BaseNode(Generic[_SessionT]):
         self._on_shutdown_cb = on_shutdown
 
         # State heartbeat publisher + timer (always active, not lifecycle-managed).
+        # INTRAPROCESS_DURABILITY: transient_local on Iron+, volatile on Humble (see _compat.py).
         state_qos = QoSProfile(
             depth=1,
             reliability=ReliabilityPolicy.RELIABLE,
-            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+            durability=INTRAPROCESS_DURABILITY,
             deadline=Duration(nanoseconds=100_000_000),
             liveliness=LivelinessPolicy.AUTOMATIC,
             liveliness_lease_duration=Duration(nanoseconds=100_000_000),
@@ -154,43 +158,63 @@ class BaseNode(Generic[_SessionT]):
             self._session = None
 
     def _handle_configure(self) -> TransitionCallbackReturn:
-        self._session = self._create_session(self._node)
-        result = self._on_configure_cb(self._session)
+        try:
+            self._session = self._create_session(self._node)
+            result = self._on_configure_cb(self._session)
+        except Exception:
+            traceback.print_exc()
+            raise
         if int(result) == _FAILURE:
             self._reset_session()
         return result
 
     def _handle_activate(self) -> TransitionCallbackReturn:
         assert self._session is not None
-        if self._on_activate_cb is not None:
-            result = self._on_activate_cb(self._session)
-            if int(result) != _SUCCESS:
-                return result
-        self._activate_entities(self._session)
+        try:
+            if self._on_activate_cb is not None:
+                result = self._on_activate_cb(self._session)
+                if int(result) != _SUCCESS:
+                    return result
+            self._activate_entities(self._session)
+        except Exception:
+            traceback.print_exc()
+            raise
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_deactivate(self) -> TransitionCallbackReturn:
         assert self._session is not None
-        if self._on_deactivate_cb is not None:
-            result = self._on_deactivate_cb(self._session)
-            if int(result) != _SUCCESS:
-                return result
-        self._deactivate_entities(self._session)
+        try:
+            if self._on_deactivate_cb is not None:
+                result = self._on_deactivate_cb(self._session)
+                if int(result) != _SUCCESS:
+                    return result
+            self._deactivate_entities(self._session)
+        except Exception:
+            traceback.print_exc()
+            raise
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_cleanup(self) -> TransitionCallbackReturn:
         assert self._session is not None
-        if self._on_cleanup_cb is not None:
-            result = self._on_cleanup_cb(self._session)
-            if int(result) != _SUCCESS:
-                return result
-        self._reset_session()
+        try:
+            if self._on_cleanup_cb is not None:
+                result = self._on_cleanup_cb(self._session)
+                if int(result) != _SUCCESS:
+                    return result
+            self._reset_session()
+        except Exception:
+            traceback.print_exc()
+            raise
         return TransitionCallbackReturn.SUCCESS
 
     def _handle_shutdown(self) -> TransitionCallbackReturn:
         if self._session is not None:
-            if self._on_shutdown_cb is not None:
-                self._on_shutdown_cb(self._session)
+            try:
+                if self._on_shutdown_cb is not None:
+                    self._on_shutdown_cb(self._session)
+            except Exception:
+                traceback.print_exc()
+                raise
             self._reset_session()
         return TransitionCallbackReturn.SUCCESS
 

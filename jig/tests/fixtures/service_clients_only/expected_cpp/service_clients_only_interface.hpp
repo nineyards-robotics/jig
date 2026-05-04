@@ -8,6 +8,7 @@
 #include <example_interfaces/srv/add_two_ints.hpp>
 #include <std_srvs/srv/trigger.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <test_package/service_clients_only_parameters.hpp>
 
@@ -66,8 +67,8 @@ class ServiceClientsOnlyBase : public jig::BaseNode<"service_clients_only", Sess
         sn->param_listener = std::make_shared<ParamListener>(sn->node.shared_from_this());
         sn->params = sn->param_listener->get_params();
         // init service clients
-        sn->service_clients.add_two_ints = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("/add_two_ints", rclcpp::ServicesQoS(), this->client_callback_group());
-        sn->service_clients.trigger_service = sn->node.template create_client<std_srvs::srv::Trigger>("trigger_service", rclcpp::ServicesQoS(), this->client_callback_group());
+        sn->service_clients.add_two_ints = sn->node.template create_client<example_interfaces::srv::AddTwoInts>("/add_two_ints", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
+        sn->service_clients.trigger_service = sn->node.template create_client<std_srvs::srv::Trigger>("trigger_service", JIG_LIFECYCLE_QOS(rclcpp::ServicesQoS()), this->client_callback_group());
         return sn;
     }
 

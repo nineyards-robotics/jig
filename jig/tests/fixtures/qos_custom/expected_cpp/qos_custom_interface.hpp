@@ -7,6 +7,7 @@
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 #include <std_msgs/msg/string.hpp>
 #include <jig/base_node.hpp>
+#include <jig/compat.hpp>
 #include <jig/session.hpp>
 #include <jig/publisher.hpp>
 #include <jig/subscriber.hpp>

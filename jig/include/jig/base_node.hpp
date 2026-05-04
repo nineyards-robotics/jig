@@ -8,6 +8,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_lifecycle/lifecycle_node.hpp>
 
+#include "compat.hpp"
 #include "fixed_string.hpp"
 #include "session.hpp"
 
@@ -40,10 +41,10 @@ class BaseNode {
         node_->register_on_error([this](const auto &) { return handle_error(); });
 
         // State heartbeat publisher + timer (always active, not lifecycle-managed).
+        // JIG_INTRAPROCESS_DURABILITY: transient_local on Iron+, volatile on Humble (see compat.hpp).
         auto state_qos = rclcpp::QoS(1)
                              .reliable()
-                             .transient_local()
-                             .deadline(std::chrono::milliseconds(100))
+                             .JIG_INTRAPROCESS_DURABILITY.deadline(std::chrono::milliseconds(100))
                              .liveliness(rclcpp::LivelinessPolicy::Automatic)
                              .liveliness_lease_duration(std::chrono::milliseconds(100));
         auto node_params = node_->get_node_parameters_interface();

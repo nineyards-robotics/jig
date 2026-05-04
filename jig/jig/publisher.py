@@ -1,7 +1,7 @@
-from rclpy.event_handler import PublisherEventCallbacks, QoSLivelinessLostInfo, QoSOfferedDeadlineMissedInfo
 from rclpy.publisher import Publisher as RclpyPublisher
 from rclpy.qos import QoSProfile
 
+from ._compat import PublisherEventCallbacks, QoSLivelinessLostInfo, QoSOfferedDeadlineMissedInfo
 from .session import Session
 
 from typing import Callable, Generic, Optional, TypeVar

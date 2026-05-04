@@ -111,14 +111,24 @@ class JigCi:
         # ------------------------------------------------------------------
         # Stage 1: rosdep install against manifests only.
         #
-        # We build a fresh Directory containing *just* the package.xml
-        # files at the same relative paths they'd have inside the
-        # workspace, then mount that. The glob is depth-limited to
-        # ``*/package.xml`` (one level below the repo root) rather than
-        # ``**/package.xml``: every real workspace package sits directly
-        # under the repo root, while the nested manifests under
-        # ``jig_cli/tests/test_ws/src/`` are test fixtures — not real
-        # packages — and would pull unnecessary rosdeps if included.
+        # Build a fresh Directory containing *just* the package.xml files
+        # at the same relative paths they'd have inside the workspace,
+        # then mount that. The glob is depth-limited to ``*/package.xml``
+        # (one level below the repo root) rather than ``**/package.xml``:
+        # every real workspace package sits directly under the repo root,
+        # while the nested manifests under ``jig_cli/tests/test_ws/src/``
+        # are test fixtures — not real packages — and would pull
+        # unnecessary rosdeps if included.
+        #
+        # We deliberately do *not* use ``with_directory(src, include=…)``
+        # here: that op's cache key is derived from the *source* Directory
+        # ID (a digest of the entire ``src`` tree), so any unrelated edit
+        # in the workspace busts this layer even though the filtered
+        # subset is identical. Building ``manifests`` from individual
+        # ``src.file(path)`` references gives us a Directory whose ID is
+        # content-addressed over the package.xml contents alone — so
+        # edits to .cpp/.py/CMakeLists.txt/test fixtures leave this layer
+        # (and the expensive rosdep exec downstream) as a cache hit.
         manifest_paths = await src.glob("*/package.xml")
         if not manifest_paths:
             raise RuntimeError("no workspace package.xml files found at */package.xml")
@@ -138,6 +148,7 @@ class JigCi:
                     "apt-get update",
                     f"rosdep update --rosdistro {ros_distro}",
                     f"rosdep install --from-paths src --ignore-src -y --rosdistro {ros_distro}",
+                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ccache",
                     "rm -rf /var/lib/apt/lists/*",
                 )
             )
@@ -175,9 +186,6 @@ class JigCi:
             .with_exec(
                 sh(
                     setup,
-                    "apt-get update",
-                    "DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends ccache",
-                    "rm -rf /var/lib/apt/lists/*",
                     "colcon build --symlink-install --event-handlers console_direct+",
                 )
             )
