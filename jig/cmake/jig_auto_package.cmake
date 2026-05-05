@@ -1,8 +1,9 @@
 # ============================================================================
 # jig_auto_package.cmake
 #
-# Automated build system for ROS 2 packages with jig nodes. Expects nodes/ directory with subdirectories containing
-# interface.yaml and C++ or Python implementation files.
+# Automated build system for ROS 2 packages with jig nodes. Optionally expects a nodes/ directory with subdirectories
+# containing interface.yaml and C++ or Python implementation files; packages without nodes/ are also supported (e.g.
+# launch-only, config-only, or shared-interface metapackages).
 #
 # NOTE: Most internal functions are implemented as macros (not functions) for consistency with ament_cmake patterns and
 # to preserve variable scope behavior. This allows macros like ament_auto_add_library() and
@@ -47,8 +48,8 @@ function(_jig_snake_to_pascal OUTPUT_VAR INPUT_STRING)
 endfunction()
 
 # Main entry point for jig build system Automates the entire build process for ROS 2 packages with jig nodes. Detects
-# languages, generates interfaces, builds libraries, and registers components. Requires: nodes/ directory with at least
-# one .cpp or .py file
+# languages, generates interfaces, builds libraries, and registers components. If nodes/ is absent, all per-node steps
+# are skipped and only top-level interfaces/, launch/, config/, and INSTALL_TO_SHARE assets are installed.
 macro(jig_auto_package)
     # Parse optional arguments
     set(_jig_auto_options "")
@@ -79,30 +80,29 @@ macro(jig_auto_package)
     # NOTE: JIG_NODES_DIR is part of the jig cmake API
     set(JIG_NODES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/nodes")
 
-    if(NOT IS_DIRECTORY ${JIG_NODES_DIR})
-        message(FATAL_ERROR "jig: nodes/ directory not found at ${JIG_NODES_DIR}")
+    # nodes/ is optional: a jig package may exist purely for launch files, configs, or shared interface YAMLs.
+    if(IS_DIRECTORY ${JIG_NODES_DIR})
+        _jig_detect_languages(${JIG_NODES_DIR} _jig_HAS_CPP _jig_HAS_PYTHON)
+
+        if(NOT _jig_HAS_CPP AND NOT _jig_HAS_PYTHON)
+            message(FATAL_ERROR "jig: nodes/ directory has no C++ (.cpp) or Python (.py) files.")
+        endif()
+
+        if(_jig_HAS_CPP)
+            # NOTE: JIG_CPP_PACKAGE_TARGET is part of the jig cmake API
+            set(JIG_CPP_PACKAGE_TARGET "${PROJECT_NAME}")
+            _jig_create_package_shared_cpp_library(${JIG_CPP_PACKAGE_TARGET})
+        endif()
+
+        if(_jig_HAS_PYTHON)
+            # set up python package
+            find_package(ament_cmake_python REQUIRED)
+            _ament_cmake_python_get_python_install_dir()
+            _jig_create_top_level_python_package()
+        endif()
+
+        _jig_generate_nodes(${JIG_NODES_DIR})
     endif()
-
-    _jig_detect_languages(${JIG_NODES_DIR} _jig_HAS_CPP _jig_HAS_PYTHON)
-
-    if(NOT _jig_HAS_CPP AND NOT _jig_HAS_PYTHON)
-        message(FATAL_ERROR "jig: nodes/ directory has no C++ (.cpp) or Python (.py) files.")
-    endif()
-
-    if(_jig_HAS_CPP)
-        # NOTE: JIG_CPP_PACKAGE_TARGET is part of the jig cmake API
-        set(JIG_CPP_PACKAGE_TARGET "${PROJECT_NAME}")
-        _jig_create_package_shared_cpp_library(${JIG_CPP_PACKAGE_TARGET})
-    endif()
-
-    if(_jig_HAS_PYTHON)
-        # set up python package
-        find_package(ament_cmake_python REQUIRED)
-        _ament_cmake_python_get_python_install_dir()
-        _jig_create_top_level_python_package()
-    endif()
-
-    _jig_generate_nodes(${JIG_NODES_DIR})
 
     # Process and install interface.yaml files with token replacement
     _jig_process_and_install_interfaces(${JIG_NODES_DIR})
@@ -417,18 +417,20 @@ macro(_jig_process_and_install_interfaces NODES_DIR)
     set(_jig_interfaces_output_dir "${CMAKE_CURRENT_BINARY_DIR}/interfaces")
     file(MAKE_DIRECTORY ${_jig_interfaces_output_dir})
 
-    # Collect expected generated node YAML names (for conflict checking)
+    # Collect expected generated node YAML names (for conflict checking). Skipped when nodes/ is absent.
     set(_jig_generated_node_yaml_names "")
-    file(GLOB _jig_interface_NODE_DIRS RELATIVE ${NODES_DIR} ${NODES_DIR}/*)
-    foreach(_jig_interface_NODE_ENTRY ${_jig_interface_NODE_DIRS})
-        set(_jig_interface_NODE_PATH "${NODES_DIR}/${_jig_interface_NODE_ENTRY}")
-        if(IS_DIRECTORY ${_jig_interface_NODE_PATH})
-            set(_jig_interface_YAML_PATH "${_jig_interface_NODE_PATH}/interface.yaml")
-            if(EXISTS ${_jig_interface_YAML_PATH})
-                list(APPEND _jig_generated_node_yaml_names "${_jig_interface_NODE_ENTRY}.yaml")
+    if(IS_DIRECTORY ${NODES_DIR})
+        file(GLOB _jig_interface_NODE_DIRS RELATIVE ${NODES_DIR} ${NODES_DIR}/*)
+        foreach(_jig_interface_NODE_ENTRY ${_jig_interface_NODE_DIRS})
+            set(_jig_interface_NODE_PATH "${NODES_DIR}/${_jig_interface_NODE_ENTRY}")
+            if(IS_DIRECTORY ${_jig_interface_NODE_PATH})
+                set(_jig_interface_YAML_PATH "${_jig_interface_NODE_PATH}/interface.yaml")
+                if(EXISTS ${_jig_interface_YAML_PATH})
+                    list(APPEND _jig_generated_node_yaml_names "${_jig_interface_NODE_ENTRY}.yaml")
+                endif()
             endif()
-        endif()
-    endforeach()
+        endforeach()
+    endif()
 
     # Process top-level interfaces/ directory if it exists
     set(_jig_toplevel_interfaces_dir "${CMAKE_CURRENT_SOURCE_DIR}/interfaces")

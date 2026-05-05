@@ -2,7 +2,7 @@
 
 import unittest
 
-from helpers import TIMEOUT, wait_for_node_state, wait_for_topic_message
+from helpers import TIMEOUT, wait_for_node_state
 import launch
 import launch_ros.actions
 import launch_testing
@@ -96,22 +96,29 @@ class TestSync(unittest.TestCase):
         """Test that a sync node publishes a combined output."""
         self._wait_active(f"{namespace}/{namespace}")
 
+        # Subscribe to `output` BEFORE publishing the inputs. The sync node fires its sync callback and publishes once
+        # as soon as both inputs land; under RELIABLE QoS the publisher only buffers for subscribers it already knows
+        # about, so a sub created after the burst can miss the message on a fast (or cold-discovery) runner.
+        received = [None]
+
+        def on_output(msg):
+            if received[0] is None and "synced:" in msg.data:
+                received[0] = msg
+
+        sub = self.node.create_subscription(String, f"{namespace}/output", on_output, self.qos)
+
         pub_a, pub_b = self._publish_synced_points(namespace, 1.0, 2.0, 3.0, 4.0)
 
-        msg = wait_for_topic_message(
-            self.node,
-            f"{namespace}/output",
-            String,
-            timeout=TIMEOUT,
-            qos=self.qos,
-            predicate=lambda m: "synced:" in m.data,
-        )
+        end = self.node.get_clock().now() + rclpy.duration.Duration(seconds=TIMEOUT)
+        while received[0] is None and self.node.get_clock().now() < end:
+            rclpy.spin_once(self.node, timeout_sec=0.1)
 
+        self.node.destroy_subscription(sub)
         self.node.destroy_publisher(pub_a)
         self.node.destroy_publisher(pub_b)
 
-        self.assertIsNotNone(msg, f"Did not receive synced output from {namespace}")
-        self.assertIn("synced:", msg.data)
+        self.assertIsNotNone(received[0], f"Did not receive synced output from {namespace}")
+        self.assertIn("synced:", received[0].data)
 
     def test_cpp_sync_node(self):
         """C++ sync node delivers paired messages through sync callback."""
