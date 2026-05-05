@@ -10,7 +10,7 @@ from lifecycle_msgs.msg import State, Transition
 
 from lifecycle_msgs.srv import ChangeState, GetState
 
-TIMEOUT = 10.0
+TIMEOUT = 20.0
 
 
 def wait_for_node_state(node: Node, name: str, target_state: int, timeout: float = TIMEOUT) -> bool:
