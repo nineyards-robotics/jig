@@ -383,21 +383,23 @@ When you call `jig_auto_package()`, it:
 7. **Installs everything** to proper locations (headers, libraries, executables, Python packages)
 8. **Auto-installs common directories** like `launch/` and `config/` if they exist
 
+If `nodes/` is absent, steps 1–7 are skipped and `jig_auto_package()` behaves as a thin wrapper around `ament_auto_package()` — useful for launch-only packages, config-only packages, shared-interface packages, and metapackages. See [Packages Without Nodes](#packages-without-nodes).
+
 #### Directory Convention
 
 ```
 my_package/
-├── nodes/                    # Required: All nodes go here
+├── nodes/                    # All nodes go here
 │   ├── my_cpp_node/
-│   │   ├── interface.yaml   # Required
+│   │   ├── interface.yaml   # Per-node interface definition
 │   │   └── my_cpp_node.hpp  # Implementation
 │   │   └── my_cpp_node.cpp  # Implementation
 │   └── my_py_node/
-│       ├── interface.yaml   # Required
+│       ├── interface.yaml   # Per-node interface definition
 │       └── my_py_node.py    # Implementation
-├── launch/                   # Optional: Auto-installed if exists
-├── config/                   # Optional: Auto-installed if exists
-├── interfaces/               # Optional: Package-level interface definitions
+├── launch/                   # Auto-installed if exists
+├── config/                   # Auto-installed if exists
+├── interfaces/               # Package-level interface definitions
 ├── CMakeLists.txt
 └── package.xml
 ```
@@ -424,6 +426,25 @@ my_package/
 ```
 
 All nodes will be built and registered automatically.
+
+#### Packages Without Nodes
+
+`nodes/` is optional, so the same `jig_auto_package()` macro works for packages that don't ship any node implementations:
+
+- **Launch-only packages** containing `launch/` files that bring up nodes from elsewhere.
+- **Config-only packages** that just install YAML configs, RViz layouts, maps, URDFs, etc.
+- **Shared-interface packages** that publish reusable `interface.yaml` files via a top-level `interfaces/` directory.
+- **Metapackages** that exist purely to declare dependencies in `package.xml`.
+
+```
+my_launch_pkg/
+├── launch/                   # Auto-installed
+├── config/                   # Auto-installed
+├── CMakeLists.txt            # find_package(jig REQUIRED); jig_auto_package()
+└── package.xml
+```
+
+When `nodes/` is missing, all per-node code generation, library creation, and component registration steps are skipped — the macro just installs `launch/`, `config/`, anything in `INSTALL_TO_SHARE`, and any top-level `interfaces/*.yaml`, then calls `ament_auto_package()`.
 
 #### Install Additional Directories
 
