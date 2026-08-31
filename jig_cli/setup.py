@@ -4,7 +4,7 @@ package_name = "jig_cli"
 
 setup(
     name=package_name,
-    version="0.0.0",
+    version="0.0.1",
     packages=find_packages(exclude=["tests"]),
     data_files=[
         ("share/ament_index/resource_index/packages", ["resource/" + package_name]),
