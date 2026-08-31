@@ -2,7 +2,7 @@
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
   <name>jig</name>
-  <version>0.0.1</version>
+  <version>0.0.2</version>
   <description>Declarative ROS 2 node scaffolding with built-in best practice.</description>
   <maintainer email="hello@alistairenglish.com">Alistair English</maintainer>
   <license>Apache 2.0</license>
