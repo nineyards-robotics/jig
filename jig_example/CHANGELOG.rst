@@ -2,6 +2,9 @@
 Changelog for package jig_example
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+Forthcoming
+-----------
+
 0.0.1 (2026-08-31)
 ------------------
 * Initial release of jig, jig_cli, jig_example
