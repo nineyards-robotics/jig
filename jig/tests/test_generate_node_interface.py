@@ -4,8 +4,8 @@
 Tests for the jig node interface code generator.
 """
 
-import py_compile
 from pathlib import Path
+import py_compile
 import subprocess
 
 import pytest
@@ -521,9 +521,7 @@ def test_generate_python_interface(test_name, input_file, expected_dir, generate
     # Compare all files in expected vs generated directories, excluding
     # externally-generated files (validated above, content not checked).
     expected_files = sorted(f for f in expected_dir.glob("*") if f.is_file())
-    generated_files = sorted(
-        f for f in generated_dir.glob("*") if f.is_file() and f.name not in EXTERNALLY_GENERATED
-    )
+    generated_files = sorted(f for f in generated_dir.glob("*") if f.is_file() and f.name not in EXTERNALLY_GENERATED)
 
     # Check same number of files
     assert len(expected_files) == len(generated_files), (
